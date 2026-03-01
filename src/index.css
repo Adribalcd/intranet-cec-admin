@@ -1,0 +1,223 @@
+/* Paleta Energética y Juvenil - Intranet CEC */
+:root {
+  --cec-primary: #009570;
+  --cec-secondary: #004DFF;
+  --cec-accent: #FFC107;
+  --cec-gray-light: #F2F4F7;
+  --cec-gray-dark: #2C3E50;
+}
+
+body {
+  background-color: var(--cec-gray-light);
+  color: var(--cec-gray-dark);
+}
+
+/* Header: color principal */
+.navbar.cec-navbar {
+  background-color: var(--cec-primary) !important;
+}
+
+.navbar.cec-navbar .navbar-brand,
+.navbar.cec-navbar .nav-link {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.navbar.cec-navbar .nav-link:hover {
+  color: #fff !important;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 0.25rem;
+}
+
+.navbar.cec-navbar .btn-outline-light:hover {
+  background-color: var(--cec-secondary);
+  border-color: var(--cec-secondary);
+  color: #fff !important;
+}
+
+/* Botones principales */
+.btn-cec-primary {
+  background-color: var(--cec-primary);
+  border-color: var(--cec-primary);
+  color: #fff;
+}
+
+.btn-cec-primary:hover {
+  background-color: #007a5c;
+  border-color: #007a5c;
+  color: #fff;
+}
+
+.btn-cec-secondary {
+  background-color: var(--cec-secondary);
+  border-color: var(--cec-secondary);
+  color: #fff;
+}
+
+.btn-cec-secondary:hover {
+  background-color: #003dcc;
+  border-color: #003dcc;
+  color: #fff;
+}
+
+/* Acento: solo botones pequeños, etiquetas, íconos */
+.badge-cec-accent,
+.btn-cec-accent,
+.btn-sm.btn-warning {
+  background-color: var(--cec-accent) !important;
+  border-color: var(--cec-accent) !important;
+  color: var(--cec-gray-dark) !important;
+}
+
+.btn-cec-accent:hover {
+  background-color: #e6ac00 !important;
+  border-color: #e6ac00 !important;
+  color: var(--cec-gray-dark) !important;
+}
+
+/* Cards y contenedores */
+.card {
+  border-color: rgba(44, 62, 80, 0.1);
+  background-color: #fff;
+}
+
+.card-header {
+  background-color: var(--cec-primary);
+  color: #fff;
+  border-color: var(--cec-primary);
+}
+
+/* Enlaces */
+a {
+  color: var(--cec-secondary);
+}
+
+a:hover {
+  color: var(--cec-primary);
+}
+
+/* Inputs focus */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--cec-primary);
+  box-shadow: 0 0 0 0.2rem rgba(0, 149, 112, 0.25);
+}
+
+/* Paginación */
+.page-link {
+  color: var(--cec-secondary);
+}
+
+.page-item.active .page-link {
+  background-color: var(--cec-primary);
+  border-color: var(--cec-primary);
+}
+
+.page-link:hover {
+  color: var(--cec-primary);
+}
+
+/* Tablas */
+.table thead th {
+  background-color: var(--cec-gray-dark);
+  color: #fff;
+  border-color: var(--cec-gray-dark);
+}
+
+/* Alertas suaves */
+.alert-success {
+  background-color: rgba(0, 149, 112, 0.15);
+  border-color: var(--cec-primary);
+  color: var(--cec-gray-dark);
+}
+
+
+/*verrr*/
+/*.cec-navbar {
+  background: linear-gradient(135deg, #009570 0%, #004dff 100%);
+}
+
+.nav-link {
+  transition: 0.3s;
+}
+
+.nav-link:hover {
+  color: #ffc107 !important;
+  transform: translateY(-2px);
+}
+
+.navbar-brand i {
+  font-size: 1.3rem;
+}*/
+/*aqui segundo*/
+.admin-card {
+  border: none;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.admin-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 25px rgba(0, 149, 112, 0.2);
+}
+
+.admin-icon {
+  width: 55px;
+  height: 55px;
+  background: linear-gradient(135deg, #009570, #004dff);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: white;
+}
+
+.btn-cec-primary {
+  background-color: #009570;
+  border: none;
+  font-weight: 500;
+}
+
+.btn-cec-primary:hover {
+  background-color: #007a5c;
+}
+
+/*aquikaal*/
+.admin-section-card {
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 8px 20px rgba(0, 149, 112, 0.08);
+  transition: all 0.3s ease;
+}
+
+.admin-section-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 149, 112, 0.15);
+}
+
+.btn-cec-primary {
+  background-color: #009570;
+  border: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-cec-primary:hover {
+  background-color: #007a5c;
+  transform: translateY(-2px);
+}
+
+.btn-cec-accent {
+  background-color: #ffc107;
+  border: none;
+  font-weight: 500;
+}
+
+.btn-cec-accent:hover {
+  background-color: #e6ac00;
+}
+
+.alert {
+  border-radius: 12px;
+}
+
