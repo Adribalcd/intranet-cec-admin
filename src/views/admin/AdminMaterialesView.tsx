@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../models/adminApi'
 import type { Ciclo, Curso } from '../../models/types'
 
@@ -211,6 +211,17 @@ const styles = `
     border: 1.5px solid #c4b5fd;
   }
 
+  .mats-file-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 10px; border-radius: 7px;
+    border: 1.5px dashed var(--border); background: #fafafa;
+    color: var(--text-muted); font-size: 11px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .mats-file-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-pale); }
+  .mats-file-attached { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--teal-dark); font-weight: 600; }
+  .mats-file-clear { background: none; border: none; cursor: pointer; color: var(--danger); font-size: 14px; padding: 0 2px; }
+
   @media (max-width: 768px) {
     .mats-filters { grid-template-columns: 1fr; }
     .mats-curso-list { grid-template-columns: 1fr 1fr; }
@@ -224,7 +235,19 @@ interface MatRow {
   nombre: string
   urlDrive: string
   urlArchivo: string
+  tipoArchivo?: string
   dirty?: boolean
+  uploading?: boolean
+  fileToUpload?: File | null
+}
+
+function getBasename(url: string): string {
+  try {
+    const parts = url.split('/')
+    return decodeURIComponent(parts[parts.length - 1].split('?')[0]) || url
+  } catch {
+    return url
+  }
 }
 
 export function AdminMaterialesView() {
@@ -240,6 +263,9 @@ export function AdminMaterialesView() {
   const [error, setError]               = useState('')
   const [success, setSuccess]           = useState('')
   const [loadingInit, setLoadingInit]   = useState(true)
+
+  // One ref per row for the hidden file inputs
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     Promise.all([adminApi.getCiclos(), adminApi.getCursos()])
@@ -280,6 +306,7 @@ export function AdminMaterialesView() {
         nombre: m.nombre || '',
         urlDrive: m.url_drive ?? m.urlDrive ?? '',
         urlArchivo: m.url_archivo ?? m.urlArchivo ?? '',
+        fileToUpload: null,
       })))
     } catch {
       setRows([])
@@ -288,9 +315,17 @@ export function AdminMaterialesView() {
     }
   }
 
+  // Agregar material — multiple materials per semana are now supported
   const addRow = () => {
     const maxSemana = rows.reduce((m, r) => Math.max(m, parseInt(r.semana) || 0), 0)
-    setRows([...rows, { semana: String(maxSemana + 1), nombre: '', urlDrive: '', urlArchivo: '', dirty: true }])
+    setRows([...rows, {
+      semana: String(maxSemana + 1),
+      nombre: '',
+      urlDrive: '',
+      urlArchivo: '',
+      dirty: true,
+      fileToUpload: null,
+    }])
   }
 
   const updateRow = (i: number, field: keyof MatRow, value: string) => {
@@ -303,10 +338,51 @@ export function AdminMaterialesView() {
 
   const removeRow = (i: number) => setRows(rows.filter((_, idx) => idx !== i))
 
+  const handleFileChange = (i: number, file: File | null) => {
+    setRows((prev) => {
+      const next = [...prev]
+      const current = { ...next[i] }
+      current.fileToUpload = file
+      current.dirty = true
+      if (file && !current.nombre) {
+        current.nombre = file.name
+      }
+      next[i] = current
+      return next
+    })
+  }
+
+  const clearFile = (i: number) => {
+    setRows((prev) => {
+      const next = [...prev]
+      next[i] = { ...next[i], fileToUpload: null, dirty: true }
+      return next
+    })
+    if (fileInputRefs.current[i]) {
+      fileInputRefs.current[i]!.value = ''
+    }
+  }
+
+  const handleDelete = async (row: MatRow) => {
+    if (!selectedCurso) return
+    if (row.id) {
+      try {
+        await adminApi.deleteMaterial(selectedCurso.id, row.id)
+      } catch {
+        setError('No se pudo eliminar el material.')
+        return
+      }
+    }
+    setRows((prev) => prev.filter((r) => r !== row))
+    // Reload from server to keep state in sync
+    await selectCurso(selectedCurso)
+  }
+
   const handleSave = async () => {
     if (!selectedCurso) return
-    const toSave = rows.filter((r) => r.semana && r.nombre)
-    if (toSave.length === 0) { setError('Agrega al menos una semana con nombre.'); return }
+    // Solo guardar filas nuevas (sin id) o marcadas como dirty
+    const toSave = rows.filter((r) => r.semana && r.nombre && (r.dirty || !r.id))
+    if (toSave.length === 0) { setError('No hay materiales nuevos o modificados para guardar.'); return }
 
     setSaving(true)
     setError('')
@@ -315,12 +391,31 @@ export function AdminMaterialesView() {
 
     for (const row of toSave) {
       try {
-        await adminApi.upsertMaterial(selectedCurso.id, {
-          semana: parseInt(row.semana),
-          nombre: row.nombre,
-          urlDrive: row.urlDrive || undefined,
-          urlArchivo: row.urlArchivo || undefined,
-        })
+        if (row.fileToUpload) {
+          // Subir archivo físico al image-service (la API crea el registro en BD)
+          await adminApi.uploadMaterial(
+            selectedCurso.id,
+            parseInt(row.semana),
+            row.nombre,
+            row.fileToUpload,
+          )
+        } else if (row.id) {
+          // Actualizar registro existente (cambio de nombre, URL Drive, etc.)
+          await adminApi.updateMaterial(selectedCurso.id, row.id, {
+            semana:    parseInt(row.semana),
+            nombre:    row.nombre,
+            urlDrive:  row.urlDrive  || undefined,
+            urlArchivo:row.urlArchivo || undefined,
+          })
+        } else {
+          // Crear nuevo registro (solo URLs, sin archivo físico)
+          await adminApi.createMaterial(selectedCurso.id, {
+            semana:    parseInt(row.semana),
+            nombre:    row.nombre,
+            urlDrive:  row.urlDrive  || undefined,
+            urlArchivo:row.urlArchivo || undefined,
+          })
+        }
       } catch { errores++ }
     }
 
@@ -430,8 +525,9 @@ export function AdminMaterialesView() {
               </div>
             </div>
             <div className="mats-panel-actions">
+              {/* Agregar material — multiple materials per semana are now supported */}
               <button className="btn-add-semana" onClick={addRow}>
-                <i className="bi bi-plus-circle" /> Agregar semana
+                <i className="bi bi-plus-circle" /> Agregar material
               </button>
               <button className="btn-guardar-mats" onClick={handleSave} disabled={saving}>
                 {saving
@@ -448,7 +544,7 @@ export function AdminMaterialesView() {
           ) : rows.length === 0 ? (
             <div className="mats-empty-panel">
               <i className="bi bi-folder-x" />
-              <p>Este curso no tiene materiales aún.<br />Usa el botón "Agregar semana" para comenzar.</p>
+              <p>Este curso no tiene materiales aún.<br />Usa el botón "Agregar material" para comenzar.</p>
             </div>
           ) : (
             <div className="mats-table-wrap">
@@ -457,8 +553,9 @@ export function AdminMaterialesView() {
                   <tr>
                     <th style={{ width: 80 }}>Semana</th>
                     <th>Nombre / Descripción</th>
-                    <th>URL de Google Drive</th>
-                    <th>URL de Archivo</th>
+                    <th>Enlace Google Drive</th>
+                    <th>URL externa (opcional)</th>
+                    <th>Archivo físico (PDF / PPT / Imagen)</th>
                     <th>Acción</th>
                   </tr>
                 </thead>
@@ -507,8 +604,80 @@ export function AdminMaterialesView() {
                           onChange={(e) => updateRow(i, 'urlArchivo', e.target.value)}
                         />
                       </td>
+                      <td style={{ minWidth: 160 }}>
+                        {/* Hidden native file input */}
+                        <input
+                          type="file"
+                          accept=".pdf,.ppt,.pptx,image/*"
+                          style={{ display: 'none' }}
+                          ref={(el) => { fileInputRefs.current[i] = el }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null
+                            handleFileChange(i, file)
+                          }}
+                        />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {/* Show existing urlArchivo as a link if no pending file */}
+                          {row.urlArchivo && !row.fileToUpload && (
+                            <div className="mats-file-attached">
+                              <span>📎</span>
+                              <a
+                                href={row.urlArchivo}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: 'var(--teal-dark)', textDecoration: 'none', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                title={row.urlArchivo}
+                              >
+                                {getBasename(row.urlArchivo)}
+                              </a>
+                              <button
+                                className="mats-file-clear"
+                                title="Quitar enlace de archivo"
+                                onClick={() => updateRow(i, 'urlArchivo', '')}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Show pending file to upload */}
+                          {row.fileToUpload && (
+                            <div className="mats-file-attached">
+                              <span>📎</span>
+                              <span
+                                style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                title={row.fileToUpload.name}
+                              >
+                                {row.fileToUpload.name}
+                              </span>
+                              <button
+                                className="mats-file-clear"
+                                title="Quitar archivo"
+                                onClick={() => clearFile(i)}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
+
+                          {/* File picker button */}
+                          <button
+                            className="mats-file-btn"
+                            type="button"
+                            onClick={() => fileInputRefs.current[i]?.click()}
+                          >
+                            <i className="bi bi-upload" />
+                            {row.fileToUpload ? 'Cambiar' : 'Subir archivo'}
+                          </button>
+                        </div>
+                      </td>
                       <td>
-                        <button className="btn-del-row" onClick={() => removeRow(i)} title="Eliminar fila">
+                        <button
+                          className="btn-del-row"
+                          onClick={() => handleDelete(row)}
+                          title="Eliminar material"
+                        >
                           <i className="bi bi-trash3" />
                         </button>
                       </td>
@@ -523,7 +692,7 @@ export function AdminMaterialesView() {
                 background: '#fafafa', display: 'flex', alignItems: 'center',
                 justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)'
               }}>
-                <span>{rows.length} semana(s) en este curso</span>
+                <span>{rows.length} material(es) en este curso</span>
                 <span>
                   {rows.filter((r) => r.urlDrive).length} con Drive &bull;{' '}
                   {rows.filter((r) => !r.urlDrive).length} sin Drive

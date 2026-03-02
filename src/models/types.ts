@@ -196,13 +196,21 @@ export interface ExamenBody {
   cicloId: number
   semana: number
   tipoExamen: string
+  subtipoExamen?: string
   fecha: string
   cantidadPreguntas?: number
+  puntajeBuena?: number
+  puntajeMala?: number
 }
 
 export interface CalificacionExamenItem {
   codigoAlumno: string
-  nota: number
+  /** Nota directa (cuando no se usa fórmula buenas/malas) */
+  nota?: number
+  /** Cantidad de respuestas correctas */
+  buenas?: number
+  /** Cantidad de respuestas incorrectas */
+  malas?: number
 }
 
 export interface Examen {
@@ -212,9 +220,15 @@ export interface Examen {
   semana: number
   tipoExamen?: string
   tipo_examen?: string
+  subtipoExamen?: string
+  subtipo_examen?: string
   fecha: string
   cantidadPreguntas?: number
   cantidad_preguntas?: number
+  puntajePreguntaBuena?: number
+  puntaje_pregunta_buena?: number
+  puntajePreguntaMala?: number
+  puntaje_pregunta_mala?: number
 }
 
 // --- Admin: Horario de cursos

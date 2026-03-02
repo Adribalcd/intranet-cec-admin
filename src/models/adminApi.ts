@@ -150,10 +150,27 @@ export const adminApi = {
     return api.delete(`${PREFIX}/horario/${id}`)
   },
 
-  // --- Materiales por curso (admin — incluye url_drive)
+  // --- Materiales por curso (admin) — 1:N por semana
   getMaterialesPorCurso(cursoId: number) {
     return api.get<any>(`${PREFIX}/cursos/${cursoId}/materiales`)
   },
+  createMaterial(cursoId: number, body: { semana: number; nombre: string; urlDrive?: string; urlArchivo?: string; tipoArchivo?: string }) {
+    return api.post<any>(`${PREFIX}/cursos/${cursoId}/materiales`, body)
+  },
+  updateMaterial(cursoId: number, id: number, body: { semana?: number; nombre?: string; urlDrive?: string; urlArchivo?: string }) {
+    return api.put<any>(`${PREFIX}/cursos/${cursoId}/materiales/${id}`, body)
+  },
+  deleteMaterial(cursoId: number, id: number) {
+    return api.delete<any>(`${PREFIX}/cursos/${cursoId}/materiales/${id}`)
+  },
+  uploadMaterial(cursoId: number, semana: number, nombre: string, file: File) {
+    const form = new FormData()
+    form.append('archivo', file)
+    form.append('semana', String(semana))
+    form.append('nombre', nombre)
+    return api.post<any>(`${PREFIX}/cursos/${cursoId}/materiales/upload`, form)
+  },
+  // Alias para compatibilidad
   upsertMaterial(cursoId: number, body: { semana: number; nombre: string; urlDrive?: string; urlArchivo?: string }) {
     return api.post<any>(`${PREFIX}/cursos/${cursoId}/materiales`, body)
   },

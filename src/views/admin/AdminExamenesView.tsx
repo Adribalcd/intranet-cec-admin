@@ -413,7 +413,10 @@ export function AdminExamenesView() {
   // Ciclo seleccionado para crear examen
   const [cicloCrearId, setCicloCrearId] = useState<number | ''>('')
   const [creando, setCreando]         = useState(false)
-  const [examenForm, setExamenForm]   = useState({ semana: '', tipoExamen: '', fecha: '', cantidadPreguntas: '' })
+  const [examenForm, setExamenForm]   = useState({
+    semana: '', tipoExamen: '', subtipoExamen: '', fecha: '',
+    cantidadPreguntas: '', puntajeBuena: '4', puntajeMala: '1',
+  })
 
   // Ciclo + examen seleccionado para registrar notas
   const [cicloNotasId, setCicloNotasId] = useState<number | ''>('')
@@ -421,7 +424,7 @@ export function AdminExamenesView() {
   const [loadingExamenes, setLoadingExamenes] = useState(false)
   const [selectedExamen, setSelectedExamen] = useState<Examen | null>(null)
   const [registrando, setRegistrando] = useState(false)
-  const [califFilas, setCalifFilas]   = useState([{ codigoAlumno: '', nota: '' }])
+  const [califFilas, setCalifFilas]   = useState([{ codigoAlumno: '', nota: '', buenas: '', malas: '' }])
 
   const [ranking, setRanking]           = useState<CalificacionExamenItem[]>([])
   const [rankingExamen, setRankingExamen] = useState<Examen | null>(null)
@@ -462,19 +465,25 @@ export function AdminExamenesView() {
   const handleCrearExamen = async (e: React.FormEvent) => {
     e.preventDefault(); clearAlerts()
     if (!cicloCrearId || !examenForm.semana || !examenForm.tipoExamen || !examenForm.fecha) {
-      setError('Completa todos los campos del examen.'); return
+      setError('Completa todos los campos obligatorios.'); return
+    }
+    if (!examenForm.subtipoExamen) {
+      setError('Selecciona el subtipo de examen.'); return
     }
     setCreando(true)
     try {
       await adminApi.crearExamen({
-        cicloId: cicloCrearId as number,
-        semana: parseInt(examenForm.semana, 10),
-        tipoExamen: examenForm.tipoExamen,
-        fecha: examenForm.fecha,
+        cicloId:           cicloCrearId as number,
+        semana:            parseInt(examenForm.semana, 10),
+        tipoExamen:        examenForm.tipoExamen,
+        subtipoExamen:     examenForm.subtipoExamen || undefined,
+        fecha:             examenForm.fecha,
         cantidadPreguntas: examenForm.cantidadPreguntas ? parseInt(examenForm.cantidadPreguntas, 10) : undefined,
+        puntajeBuena:      examenForm.puntajeBuena  ? parseFloat(examenForm.puntajeBuena) : 4,
+        puntajeMala:       examenForm.puntajeMala   ? parseFloat(examenForm.puntajeMala)  : 1,
       })
       setSuccess('Examen creado correctamente.')
-      setExamenForm({ semana: '', tipoExamen: '', fecha: '', cantidadPreguntas: '' })
+      setExamenForm({ semana: '', tipoExamen: '', subtipoExamen: '', fecha: '', cantidadPreguntas: '', puntajeBuena: '4', puntajeMala: '1' })
       // Refrescar lista si está en el mismo ciclo
       if (cicloNotasId === cicloCrearId) {
         const res = await adminApi.getExamenesPorCiclo(cicloCrearId as number)
@@ -487,23 +496,33 @@ export function AdminExamenesView() {
     }
   }
 
-  // Registrar calificaciones
+  // Registrar calificaciones — soporta nota directa O buenas/malas
+  const usaBuenasMalas = Boolean(
+    selectedExamen &&
+    (selectedExamen.puntaje_pregunta_buena ?? selectedExamen.puntajePreguntaBuena)
+  )
+
   const handleRegistrarCalificaciones = async (e: React.FormEvent) => {
     e.preventDefault(); clearAlerts()
     if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
-    const calificaciones: CalificacionExamenItem[] = califFilas
-      .filter((f) => f.codigoAlumno.trim() && f.nota !== '')
-      .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), nota: parseFloat(f.nota) }))
+
+    const calificaciones: CalificacionExamenItem[] = usaBuenasMalas
+      ? califFilas
+          .filter((f) => f.codigoAlumno.trim() && f.buenas !== '' && f.malas !== '')
+          .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), buenas: parseInt(f.buenas, 10), malas: parseInt(f.malas, 10) }))
+      : califFilas
+          .filter((f) => f.codigoAlumno.trim() && f.nota !== '')
+          .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), nota: parseFloat(f.nota) }))
+
     if (calificaciones.length === 0) { setError('Ingresa al menos una calificación.'); return }
     setRegistrando(true)
     try {
       await adminApi.registrarCalificaciones(selectedExamen.id, calificaciones)
       setSuccess(`${calificaciones.length} calificación(es) registradas con orden de mérito.`)
-      // Show visual ranking
-      const sorted = [...calificaciones].sort((a, b) => b.nota - a.nota)
+      const sorted = [...calificaciones].sort((a, b) => (b.nota ?? 0) - (a.nota ?? 0))
       setRanking(sorted)
       setRankingExamen(selectedExamen)
-      setCalifFilas([{ codigoAlumno: '', nota: '' }])
+      setCalifFilas([{ codigoAlumno: '', nota: '', buenas: '', malas: '' }])
     } catch {
       setError('Error al registrar calificaciones.')
     } finally {
@@ -511,9 +530,9 @@ export function AdminExamenesView() {
     }
   }
 
-  const addFila    = () => setCalifFilas([...califFilas, { codigoAlumno: '', nota: '' }])
+  const addFila    = () => setCalifFilas([...califFilas, { codigoAlumno: '', nota: '', buenas: '', malas: '' }])
   const removeFila = (i: number) => setCalifFilas(califFilas.filter((_, idx) => idx !== i))
-  const updateFila = (i: number, field: 'codigoAlumno' | 'nota', val: string) => {
+  const updateFila = (i: number, field: 'codigoAlumno' | 'nota' | 'buenas' | 'malas', val: string) => {
     const next = [...califFilas]; next[i] = { ...next[i], [field]: val }
     setCalifFilas(next)
   }
@@ -654,18 +673,67 @@ export function AdminExamenesView() {
                 <div className="exam-field">
                   <label>Tipo de examen</label>
                   <div className="exam-select-wrap">
-                    <select value={examenForm.tipoExamen}
-                      onChange={(e) => setExamenForm({ ...examenForm, tipoExamen: e.target.value })} required>
-                      <option value="">-- Tipo --</option>
-                      <option value="Parcial">Parcial</option>
-                      <option value="Final">Final</option>
-                      <option value="Práctica">Práctica</option>
-                      <option value="Diagnóstico">Diagnóstico</option>
-                      <option value="Simulacro">Simulacro</option>
+                    <select
+                      value={examenForm.tipoExamen}
+                      onChange={(e) => setExamenForm({
+                        ...examenForm,
+                        tipoExamen: e.target.value,
+                        subtipoExamen: '',        // resetear subtipo al cambiar tipo
+                      })}
+                      required
+                    >
+                      <option value="">-- Seleccionar tipo --</option>
+                      <option value="Anual">Anual</option>
+                      <option value="Semestral">Semestral</option>
                     </select>
                   </div>
                 </div>
               </div>
+
+              {/* ── Subtipo Anual ── */}
+              {examenForm.tipoExamen === 'Anual' && (
+                <div className="exam-field">
+                  <label>Subtipo <span style={{ color: '#e76f51', fontWeight: 400 }}>*</span></label>
+                  <div className="exam-select-wrap">
+                    <select
+                      value={examenForm.subtipoExamen}
+                      onChange={(e) => setExamenForm({ ...examenForm, subtipoExamen: e.target.value })}
+                      required
+                    >
+                      <option value="">-- Seleccionar subtipo --</option>
+                      <optgroup label="Simulacros Semanales">
+                        <option value="Simulacro Semanal - Matemáticas y Ciencias">Simulacro Semanal — Matemáticas y Ciencias</option>
+                        <option value="Simulacro Semanal - Humanidades">Simulacro Semanal — Humanidades</option>
+                      </optgroup>
+                      <optgroup label="Simulacros Bimestrales">
+                        <option value="Simulacro Bimestral">Simulacro Bimestral</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Subtipo Semestral ── */}
+              {examenForm.tipoExamen === 'Semestral' && (
+                <div className="exam-field">
+                  <label>Subtipo <span style={{ color: '#e76f51', fontWeight: 400 }}>*</span></label>
+                  <div className="exam-select-wrap">
+                    <select
+                      value={examenForm.subtipoExamen}
+                      onChange={(e) => setExamenForm({ ...examenForm, subtipoExamen: e.target.value })}
+                      required
+                    >
+                      <option value="">-- Seleccionar subtipo --</option>
+                      <option value="Semanal de Profesores">Semanal de Profesores</option>
+                      <optgroup label="Semanales por Área">
+                        <option value="Semanal por Área - Matemáticas y Ciencias">Semanal por Área — Matemáticas y Ciencias</option>
+                        <option value="Semanal por Área - Humanidades">Semanal por Área — Humanidades</option>
+                      </optgroup>
+                      <option value="Tipo Admisión">Tipo Admisión</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div className="exam-field-row">
                 <div className="exam-field">
@@ -678,6 +746,22 @@ export function AdminExamenesView() {
                   <input type="number" placeholder="Ej: 50" min={1}
                     value={examenForm.cantidadPreguntas}
                     onChange={(e) => setExamenForm({ ...examenForm, cantidadPreguntas: e.target.value })} />
+                </div>
+              </div>
+
+              {/* Puntajes para fórmula Buenas/Malas */}
+              <div className="exam-field-row">
+                <div className="exam-field">
+                  <label>Pts. respuesta correcta</label>
+                  <input type="number" step="0.5" min={0} placeholder="4"
+                    value={examenForm.puntajeBuena}
+                    onChange={(e) => setExamenForm({ ...examenForm, puntajeBuena: e.target.value })} />
+                </div>
+                <div className="exam-field">
+                  <label>Pts. descontados (incorrecta)</label>
+                  <input type="number" step="0.5" min={0} placeholder="1"
+                    value={examenForm.puntajeMala}
+                    onChange={(e) => setExamenForm({ ...examenForm, puntajeMala: e.target.value })} />
                 </div>
               </div>
 
@@ -766,7 +850,9 @@ export function AdminExamenesView() {
             {selectedExamen && (
               <form onSubmit={handleRegistrarCalificaciones}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                  Código alumno / Nota
+                  {usaBuenasMalas
+                    ? `Código / Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
+                    : 'Código alumno / Nota directa'}
                 </label>
 
                 {califFilas.length === 0 ? (
@@ -784,13 +870,28 @@ export function AdminExamenesView() {
                             value={f.codigoAlumno}
                             onChange={(e) => updateFila(i, 'codigoAlumno', e.target.value)} />
                         </div>
-                        <div>
-                          <div className="calif-row-num">NOTA</div>
-                          <input type="number" step="0.01" min={0} max={20} placeholder="0.00"
-                            value={f.nota}
-                            onChange={(e) => updateFila(i, 'nota', e.target.value)} />
-                          {f.nota && <div style={{ marginTop: 4 }}>{notaBadge(f.nota)}</div>}
-                        </div>
+                        {usaBuenasMalas ? (<>
+                          <div>
+                            <div className="calif-row-num">BUENAS</div>
+                            <input type="number" min={0} placeholder="0"
+                              value={f.buenas}
+                              onChange={(e) => updateFila(i, 'buenas', e.target.value)} />
+                          </div>
+                          <div>
+                            <div className="calif-row-num">MALAS</div>
+                            <input type="number" min={0} placeholder="0"
+                              value={f.malas}
+                              onChange={(e) => updateFila(i, 'malas', e.target.value)} />
+                          </div>
+                        </>) : (
+                          <div>
+                            <div className="calif-row-num">NOTA</div>
+                            <input type="number" step="0.01" min={0} max={20} placeholder="0.00"
+                              value={f.nota}
+                              onChange={(e) => updateFila(i, 'nota', e.target.value)} />
+                            {f.nota && <div style={{ marginTop: 4 }}>{notaBadge(f.nota)}</div>}
+                          </div>
+                        )}
                         <button type="button" className="btn-remove-fila" onClick={() => removeFila(i)}>
                           <i className="bi bi-trash3-fill" />
                         </button>
@@ -803,11 +904,11 @@ export function AdminExamenesView() {
                   <button type="button" className="btn-add-fila" onClick={addFila}>
                     <i className="bi bi-plus-circle" /> Agregar fila
                   </button>
-                  {califFilas.some((f) => f.codigoAlumno && f.nota) && (
+                  {califFilas.some((f) => f.codigoAlumno && (f.nota || (f.buenas && f.malas))) && (
                     <button type="submit" className="btn-registrar-notas" disabled={registrando}>
                       {registrando
                         ? <><div className="exam-spinner-sm" /> Registrando...</>
-                        : <><i className="bi bi-check2-all" /> Registrar {califFilas.filter(f => f.codigoAlumno && f.nota).length} nota(s)</>}
+                        : <><i className="bi bi-check2-all" /> Registrar {califFilas.filter(f => f.codigoAlumno && (f.nota || f.buenas)).length} nota(s)</>}
                     </button>
                   )}
                 </div>
