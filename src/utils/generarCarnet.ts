@@ -1,6 +1,6 @@
 /**
- * Generador de carnets (fotochecks) de alumnos — Intranet CEC
- * Tamaño: 85.6 × 54 mm (tarjeta de crédito / fotocheck horizontal)
+ * Generador de carnets (fotochecks) — Intranet CEC Camargo
+ * Tamaño: 85.6 × 54 mm (fotocheck horizontal / tarjeta de crédito)
  */
 import { jsPDF } from 'jspdf'
 import api from '../config/api'
@@ -14,7 +14,6 @@ export interface CarnetAlumno {
   fotoUrl?: string | null
 }
 
-/** Convierte una URL (externa o relativa) a data-URL base64 */
 async function urlToDataUrl(url: string): Promise<string> {
   const resp = await fetch(url)
   if (!resp.ok) throw new Error(`fetch ${url} → ${resp.status}`)
@@ -27,7 +26,6 @@ async function urlToDataUrl(url: string): Promise<string> {
   })
 }
 
-/** Obtiene el QR del alumno (PNG) como data-URL, usando el token de sesión */
 async function getQrDataUrl(codigo: string): Promise<string> {
   const resp = await api.get(`/api/admin/alumno/${encodeURIComponent(codigo)}/qr`, {
     responseType: 'blob',
@@ -40,7 +38,6 @@ async function getQrDataUrl(codigo: string): Promise<string> {
   })
 }
 
-/** Carga el logo CEC desde /public */
 let logoCache: string | null = null
 async function getLogoDataUrl(): Promise<string> {
   if (logoCache) return logoCache
@@ -48,139 +45,153 @@ async function getLogoDataUrl(): Promise<string> {
   return logoCache
 }
 
-/**
- * Genera el PDF de un carnet individual.
- * @returns Blob PDF listo para descargar
- */
+// ── Colores ──────────────────────────────────────────────────
+const TEAL_DARK  = [13,  79,  92]  as const   // #0d4f5c
+const TEAL_MID   = [10, 147, 150]  as const   // #0a9396
+const TEAL_LIGHT = [148, 210, 189] as const   // #94d2bd
+const WHITE      = [255, 255, 255] as const
+const DARK_TEXT  = [25,  40,  45]  as const
+
 export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
-  // ── Cargar imágenes en paralelo ──────────────────────────────
+  const W = 85.6
+  const H = 54
+
   const [logoDataUrl, qrDataUrl, fotoDataUrl] = await Promise.all([
     getLogoDataUrl(),
     getQrDataUrl(alumno.codigo).catch(() => null),
     alumno.fotoUrl ? urlToDataUrl(alumno.fotoUrl).catch(() => null) : Promise.resolve(null),
   ])
 
-  // ── Crear documento ─────────────────────────────────────────
-  // Orientación landscape, unidad mm, tamaño fotocheck/tarjeta
-  const W = 85.6
-  const H = 54
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [H, W] })
 
-  // ── Fondo ───────────────────────────────────────────────────
-  // Panel izquierdo oscuro (foto)
-  doc.setFillColor(13, 79, 92)       // #0d4f5c
+  // ── Fondo base blanco ────────────────────────────────────────
+  doc.setFillColor(...WHITE)
+  doc.rect(0, 0, W, H, 'F')
+
+  // ── Franja izquierda oscura (zona foto) ──────────────────────
+  doc.setFillColor(...TEAL_DARK)
   doc.rect(0, 0, 30, H, 'F')
 
-  // Panel derecho blanco
-  doc.setFillColor(255, 255, 255)
-  doc.rect(30, 0, W - 30, H, 'F')
+  // ── Header: barra teal en zona derecha ───────────────────────
+  doc.setFillColor(...TEAL_MID)
+  doc.rect(30, 0, W - 30, 13, 'F')
 
-  // Barra superior (teal)
-  doc.setFillColor(10, 147, 150)     // #0a9396
-  doc.rect(30, 0, W - 30, 12, 'F')
+  // ── Logo sobre fondo blanco (cuadrito blanco dentro del header) ─
+  doc.setFillColor(...WHITE)
+  doc.rect(31.5, 0.8, 11.5, 11.5, 'F')
+  doc.addImage(logoDataUrl, 'JPEG', 31.8, 1, 11, 11)
 
-  // Línea decorativa inferior
-  doc.setFillColor(148, 210, 189)    // #94d2bd (teal-light)
-  doc.rect(0, H - 3, W, 3, 'F')
-
-  // ── Logo CEC (barra superior izquierda del panel derecho) ──
-  doc.addImage(logoDataUrl, 'JPEG', 31.5, 1.5, 9, 9)
-
-  // ── Texto barra superior ────────────────────────────────────
-  doc.setTextColor(255, 255, 255)
+  // ── Texto header ─────────────────────────────────────────────
+  doc.setTextColor(...WHITE)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.5)
-  doc.text('CEC CAMARGO', 42, 5.5)
+  doc.setFontSize(7)
+  doc.text('CÍRCULO DE ESTUDIOS CAMARGO', 44.5, 5.5)
+
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(5.5)
-  doc.text('Academia Preuniversitaria', 42, 9)
+  doc.setFontSize(5.2)
+  doc.text('Academia Preuniversitaria', 44.5, 9)
 
-  // Etiqueta "CARNET DE ESTUDIANTE" (esquina superior derecha)
+  // "CARNET DE ESTUDIANTE" alineado a la derecha del header
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5)
-  doc.setTextColor(255, 255, 255)
-  const label = 'CARNET DE ESTUDIANTE'
-  doc.text(label, W - 2, 9, { align: 'right' })
+  doc.setFontSize(4.8)
+  doc.setTextColor(...TEAL_LIGHT)
+  doc.text('CARNET DE ESTUDIANTE', W - 1.5, 11.5, { align: 'right' })
 
-  // ── Foto del alumno ─────────────────────────────────────────
-  const fotoX = 1, fotoY = 8, fotoW = 28, fotoH = 36
+  // Línea divisora bajo header (zona derecha)
+  doc.setDrawColor(...TEAL_LIGHT)
+  doc.setLineWidth(0.4)
+  doc.line(30, 13, W, 13)
+
+  // ── Foto del alumno ──────────────────────────────────────────
+  const fX = 1.5, fY = 1, fW = 27, fH = 50
   if (fotoDataUrl) {
-    doc.addImage(fotoDataUrl, 'JPEG', fotoX, fotoY, fotoW, fotoH)
+    doc.addImage(fotoDataUrl, 'JPEG', fX, fY, fW, fH)
   } else {
-    // Placeholder
-    doc.setFillColor(20, 100, 115)
-    doc.rect(fotoX, fotoY, fotoW, fotoH, 'F')
+    doc.setFillColor(20, 95, 110)
+    doc.rect(fX, fY, fW, fH, 'F')
     doc.setTextColor(180, 220, 220)
     doc.setFontSize(6)
     doc.setFont('helvetica', 'normal')
-    doc.text('Sin foto', fotoX + fotoW / 2, fotoY + fotoH / 2, { align: 'center' })
+    doc.text('Sin foto', fX + fW / 2, fY + fH / 2 + 1, { align: 'center' })
   }
 
-  // ── Datos del alumno ────────────────────────────────────────
-  const tx = 32   // x base para texto
-  const ty = 16   // y base
-  const lineH = 5.2
-
-  doc.setTextColor(13, 79, 92)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
+  // ── Nombre completo ──────────────────────────────────────────
   const nombreCompleto = `${alumno.nombres} ${alumno.apellidos}`
-  // Nombre largo: partir si > 26 chars
-  const maxW = W - tx - 24 - 2  // reservar espacio para QR (22mm) + margen
-  const nombreLines = doc.splitTextToSize(nombreCompleto, maxW)
-  doc.text(nombreLines, tx, ty)
-
-  const afterNombre = ty + nombreLines.length * 4.5
-
-  doc.setFontSize(7)
+  doc.setTextColor(...TEAL_DARK)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(10, 147, 150)
-  doc.text('CÓDIGO', tx, afterNombre + lineH * 0.6)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(30, 30, 30)
-  doc.text(alumno.codigo, tx + 14, afterNombre + lineH * 0.6)
-
-  if (alumno.dni) {
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(10, 147, 150)
-    doc.text('DNI', tx, afterNombre + lineH * 1.6)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30, 30, 30)
-    doc.text(alumno.dni, tx + 14, afterNombre + lineH * 1.6)
+  doc.setFontSize(9.5)
+  // Nombre cabe en ~32mm (QR ocupa los últimos 23mm + margen)
+  const nombreLines = doc.splitTextToSize(nombreCompleto, 32)
+  // Máximo 2 líneas; si es muy largo reducir fuente
+  if (nombreLines.length > 2) {
+    doc.setFontSize(7.5)
   }
+  doc.text(nombreLines.slice(0, 2), 31.5, 19)
 
+  // ── Línea separadora bajo nombre ─────────────────────────────
+  const sepY = nombreLines.length >= 2 ? 27 : 24
+  doc.setDrawColor(...TEAL_LIGHT)
+  doc.setLineWidth(0.25)
+  doc.line(31.5, sepY, 62, sepY)
+
+  // ── Datos: DNI y CICLO ───────────────────────────────────────
+  const labelX  = 31.5
+  const valueX  = 42
+  const maxValW = 19   // ancho disponible antes del QR
+
+  // DNI
+  const row1Y = sepY + 5
+  doc.setFontSize(6)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(10, 147, 150)
-  doc.text('CICLO', tx, afterNombre + lineH * 2.6)
+  doc.setTextColor(...TEAL_MID)
+  doc.text('DNI', labelX, row1Y)
   doc.setFont('helvetica', 'normal')
-  doc.setTextColor(30, 30, 30)
-  const cicloText = doc.splitTextToSize(alumno.cicloNombre, maxW)
-  doc.text(cicloText, tx + 14, afterNombre + lineH * 2.6)
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(6.5)
+  doc.text(alumno.dni ?? alumno.codigo, valueX, row1Y)
 
-  // ── QR code ─────────────────────────────────────────────────
+  // CICLO
+  const row2Y = row1Y + 6
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...TEAL_MID)
+  doc.text('CICLO', labelX, row2Y)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(6)
+  const cicloLines = doc.splitTextToSize(alumno.cicloNombre, maxValW)
+  doc.text(cicloLines.slice(0, 2), valueX, row2Y)
+
+  // ── QR ───────────────────────────────────────────────────────
   const qrSize = 22
-  const qrX = W - qrSize - 1.5
-  const qrY = H - qrSize - 4
+  const qrX    = W - qrSize - 1
+  const qrY    = 15
   if (qrDataUrl) {
+    // Marco blanco bajo QR por si el fondo es oscuro
+    doc.setFillColor(...WHITE)
+    doc.rect(qrX - 0.5, qrY - 0.5, qrSize + 1, qrSize + 1, 'F')
     doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
   }
 
-  // ── Código bajo el QR ───────────────────────────────────────
-  doc.setFontSize(4.5)
-  doc.setTextColor(100, 100, 100)
+  // DNI bajo el QR (código legible)
+  doc.setFontSize(4.2)
+  doc.setTextColor(120, 120, 120)
   doc.setFont('helvetica', 'normal')
-  doc.text(alumno.codigo, qrX + qrSize / 2, H - 3.5, { align: 'center' })
+  doc.text(alumno.dni ?? alumno.codigo, qrX + qrSize / 2, qrY + qrSize + 2, { align: 'center' })
+
+  // ── Franja inferior de color ──────────────────────────────────
+  doc.setFillColor(...TEAL_LIGHT)
+  doc.rect(0, H - 2.5, W, 2.5, 'F')
 
   return doc.output('blob')
 }
 
-/** Descarga un carnet individual */
 export async function descargarCarnet(alumno: CarnetAlumno) {
   const blob = await generarCarnet(alumno)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `carnet_${alumno.codigo}.pdf`
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `carnet_${alumno.dni ?? alumno.codigo}.pdf`
   a.click()
   URL.revokeObjectURL(url)
 }
