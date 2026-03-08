@@ -166,11 +166,12 @@ export const adminApi = {
   deleteMaterial(cursoId: number, id: number) {
     return api.delete<any>(`${PREFIX}/cursos/${cursoId}/materiales/${id}`)
   },
-  uploadMaterial(cursoId: number, semana: number, nombre: string, file: File) {
+  uploadMaterial(cursoId: number, semana: number, nombre: string, file: File, materialId?: number) {
     const form = new FormData()
     form.append('archivo', file)
     form.append('semana', String(semana))
     form.append('nombre', nombre)
+    if (materialId != null) form.append('materialId', String(materialId))
     return api.post<any>(`${PREFIX}/cursos/${cursoId}/materiales/upload`, form)
   },
   // Alias para compatibilidad

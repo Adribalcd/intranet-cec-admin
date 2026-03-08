@@ -380,7 +380,6 @@ export function AdminMaterialesView() {
 
   const handleSave = async () => {
     if (!selectedCurso) return
-    // Solo guardar filas nuevas (sin id) o marcadas como dirty
     const toSave = rows.filter((r) => r.semana && r.nombre && (r.dirty || !r.id))
     if (toSave.length === 0) { setError('No hay materiales nuevos o modificados para guardar.'); return }
 
@@ -388,44 +387,46 @@ export function AdminMaterialesView() {
     setError('')
     setSuccess('')
     let errores = 0
+    let lastErrorMsg = ''
 
     for (const row of toSave) {
       try {
         if (row.fileToUpload) {
-          // Subir archivo físico al image-service (la API crea el registro en BD)
+          // Si el material ya existe (row.id), el backend actualiza en vez de crear duplicado
           await adminApi.uploadMaterial(
             selectedCurso.id,
             parseInt(row.semana),
             row.nombre,
             row.fileToUpload,
+            row.id,
           )
         } else if (row.id) {
-          // Actualizar registro existente (cambio de nombre, URL Drive, etc.)
           await adminApi.updateMaterial(selectedCurso.id, row.id, {
-            semana:    parseInt(row.semana),
-            nombre:    row.nombre,
-            urlDrive:  row.urlDrive  || undefined,
-            urlArchivo:row.urlArchivo || undefined,
+            semana:     parseInt(row.semana),
+            nombre:     row.nombre,
+            urlDrive:   row.urlDrive   || undefined,
+            urlArchivo: row.urlArchivo || undefined,
           })
         } else {
-          // Crear nuevo registro (solo URLs, sin archivo físico)
           await adminApi.createMaterial(selectedCurso.id, {
-            semana:    parseInt(row.semana),
-            nombre:    row.nombre,
-            urlDrive:  row.urlDrive  || undefined,
-            urlArchivo:row.urlArchivo || undefined,
+            semana:     parseInt(row.semana),
+            nombre:     row.nombre,
+            urlDrive:   row.urlDrive   || undefined,
+            urlArchivo: row.urlArchivo || undefined,
           })
         }
-      } catch { errores++ }
+      } catch (e: any) {
+        errores++
+        lastErrorMsg = e?.response?.data?.error || e?.message || 'Error desconocido'
+      }
     }
 
     setSaving(false)
     if (errores === 0) {
       setSuccess(`${toSave.length} material(es) guardados en "${selectedCurso.nombre}".`)
-      // Recargar desde servidor
       selectCurso(selectedCurso)
     } else {
-      setError(`${errores} material(es) no se pudieron guardar.`)
+      setError(`${errores} material(es) no se pudieron guardar. Detalle: ${lastErrorMsg}`)
     }
   }
 
