@@ -115,59 +115,39 @@ export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
     doc.text('Sin foto', fX + fW / 2, fY + fH / 2 + 1, { align: 'center' })
   }
 
-  // ── Nombre completo ──────────────────────────────────────────
+  // ── Nombre completo (ancho total de la zona de contenido) ────
+  const CONTENT_X   = 31.5
+  const CONTENT_W   = W - CONTENT_X - 1.5   // ~52.6 mm — ancho completo disponible
   const nombreCompleto = `${alumno.nombres} ${alumno.apellidos}`
   doc.setTextColor(...TEAL_DARK)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9.5)
-  // Nombre cabe en ~32mm (QR ocupa los últimos 23mm + margen)
-  const nombreLines = doc.splitTextToSize(nombreCompleto, 32)
-  // Máximo 2 líneas; si es muy largo reducir fuente
-  if (nombreLines.length > 2) {
-    doc.setFontSize(7.5)
+
+  // Auto-escala: empieza en 9pt, reduce hasta que quepa en ≤3 líneas
+  let nombreFontSize = 9
+  let nombreLines = doc.setFontSize(nombreFontSize).splitTextToSize(nombreCompleto, CONTENT_W)
+  if (nombreLines.length > 3) {
+    nombreFontSize = 7.5
+    nombreLines = doc.setFontSize(nombreFontSize).splitTextToSize(nombreCompleto, CONTENT_W)
   }
-  doc.text(nombreLines.slice(0, 2), 31.5, 19)
+  if (nombreLines.length > 3) {
+    nombreFontSize = 6.5
+    nombreLines = doc.setFontSize(nombreFontSize).splitTextToSize(nombreCompleto, CONTENT_W)
+  }
+  doc.setFontSize(nombreFontSize)
+  doc.text(nombreLines.slice(0, 3), CONTENT_X, 18)
 
   // ── Línea separadora bajo nombre ─────────────────────────────
-  const sepY = nombreLines.length >= 2 ? 27 : 24
+  // sepY fijo para que el resto del layout no salte
+  const sepY = 27
   doc.setDrawColor(...TEAL_LIGHT)
   doc.setLineWidth(0.25)
-  doc.line(31.5, sepY, 62, sepY)
+  doc.line(CONTENT_X, sepY, W - 1.5, sepY)
 
-  // ── Datos: DNI y CICLO ───────────────────────────────────────
-  const labelX  = 31.5
-  const valueX  = 42
-  const maxValW = 19   // ancho disponible antes del QR
-
-  // DNI
-  const row1Y = sepY + 5
-  doc.setFontSize(6)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...TEAL_MID)
-  doc.text('DNI', labelX, row1Y)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...DARK_TEXT)
-  doc.setFontSize(6.5)
-  doc.text(alumno.dni ?? alumno.codigo, valueX, row1Y)
-
-  // CICLO
-  const row2Y = row1Y + 6
-  doc.setFontSize(6)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...TEAL_MID)
-  doc.text('CICLO', labelX, row2Y)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...DARK_TEXT)
-  doc.setFontSize(6)
-  const cicloLines = doc.splitTextToSize(alumno.cicloNombre, maxValW)
-  doc.text(cicloLines.slice(0, 2), valueX, row2Y)
-
-  // ── QR ───────────────────────────────────────────────────────
-  const qrSize = 22
-  const qrX    = W - qrSize - 1
-  const qrY    = 15
+  // ── QR (esquina inferior derecha, bajo la línea) ──────────────
+  const qrSize = 19
+  const qrX    = W - qrSize - 1.5
+  const qrY    = sepY + 2
   if (qrDataUrl) {
-    // Marco blanco bajo QR por si el fondo es oscuro
     doc.setFillColor(...WHITE)
     doc.rect(qrX - 0.5, qrY - 0.5, qrSize + 1, qrSize + 1, 'F')
     doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
@@ -178,6 +158,34 @@ export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
   doc.setTextColor(120, 120, 120)
   doc.setFont('helvetica', 'normal')
   doc.text(alumno.dni ?? alumno.codigo, qrX + qrSize / 2, qrY + qrSize + 2, { align: 'center' })
+
+  // ── Datos: DNI y CICLO (columna izquierda, bajo separador) ───
+  const labelX  = CONTENT_X
+  const valueX  = labelX + 10
+  const maxValW = qrX - valueX - 1.5   // ancho hasta el QR
+
+  // DNI
+  const row1Y = sepY + 8
+  doc.setFontSize(5.5)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...TEAL_MID)
+  doc.text('DNI', labelX, row1Y)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(6)
+  doc.text(alumno.dni ?? alumno.codigo, valueX, row1Y)
+
+  // CICLO
+  const row2Y = row1Y + 7
+  doc.setFontSize(5.5)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...TEAL_MID)
+  doc.text('CICLO', labelX, row2Y)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...DARK_TEXT)
+  doc.setFontSize(5.5)
+  const cicloLines = doc.splitTextToSize(alumno.cicloNombre, maxValW)
+  doc.text(cicloLines.slice(0, 2), valueX, row2Y)
 
   // ── Franja inferior de color ──────────────────────────────────
   doc.setFillColor(...TEAL_LIGHT)
