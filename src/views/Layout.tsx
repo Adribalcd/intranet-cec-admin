@@ -279,6 +279,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </NavLink>
                 </li>
                 <li>
+                  <NavLink className="cec-nav-link" to="/admin/horario">
+                    <i className="bi bi-calendar-week-fill" /> Horarios
+                  </NavLink>
+                </li>
+                <li>
                   <NavLink className="cec-nav-link" to="/admin/asistencia">
                     <i className="bi bi-clipboard-data-fill" /> Asistencia
                   </NavLink>
@@ -286,6 +291,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <li>
                   <NavLink className="cec-nav-link" to="/admin/examenes">
                     <i className="bi bi-file-earmark-text-fill" /> Exámenes
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink className="cec-nav-link" to="/admin/materiales">
+                    <i className="bi bi-folder-fill" /> Materiales
                   </NavLink>
                 </li>
               </ul>

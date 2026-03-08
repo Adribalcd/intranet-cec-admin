@@ -10,7 +10,6 @@ import type {
   CursoBody,
   MatriculaManualBody,
   MatriculaMasivaBody,
-  MatriculaNuevoAlumnoBody,
   AlumnoDetail,
   AsistenciaRegistroBody,
   AsistenciaInhabilitarBody,
@@ -75,10 +74,6 @@ export const adminApi = {
   matriculaMasiva(body: MatriculaMasivaBody) {
     return api.post(`${PREFIX}/matricula/masiva`, body)
   },
-  matriculaNuevoAlumno(body: MatriculaNuevoAlumnoBody) {
-    return api.post(`${PREFIX}/matricula/nuevo-alumno`, body)
-  },
-
   // --- Alumnos
   getAlumno(codigo: string) {
     return api.get<AlumnoDetail>(`${PREFIX}/alumno/${encodeURIComponent(codigo)}`)
@@ -110,6 +105,14 @@ export const adminApi = {
   },
   getAsistenciaListado(cicloId: number, fecha: string) {
     return api.get<AsistenciaListResponse>(`${PREFIX}/asistencia/listado`, { params: { cicloId, fecha } })
+  },
+
+  // --- Matrícula: anular / eliminar alumno
+  anularMatricula(codigoAlumno: string, cicloId: string) {
+    return api.delete(`${PREFIX}/alumno/${encodeURIComponent(codigoAlumno)}/matricula/${cicloId}`)
+  },
+  eliminarAlumno(codigoAlumno: string) {
+    return api.delete(`${PREFIX}/alumno/${encodeURIComponent(codigoAlumno)}/eliminar`)
   },
 
   // --- Exámenes y notas

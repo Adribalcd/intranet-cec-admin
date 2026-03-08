@@ -298,6 +298,24 @@ const styles = `
     animation: alspin 0.7s linear infinite; flex-shrink: 0;
   }
   .photo-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; }
+
+  /* Anular / Eliminar */
+  .btn-anular {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 11px; font-weight: 700; font-family: inherit; transition: opacity .15s;
+    background: #fff0ed; color: #e76f51; border: 1px solid #fca5a5;
+  }
+  .btn-anular:hover { background: #ffe0d9; }
+  .btn-del-alumno {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 11px; font-weight: 700; font-family: inherit; transition: opacity .15s;
+    background: #fee2e2; color: #c1121f; border: 1px solid #fca5a5;
+  }
+  .btn-del-alumno:hover { background: #fecaca; }
+  .confirm-modal-danger { background: #fff5f5; border: 1px solid #fca5a5; border-radius: 12px; padding: 18px; margin-bottom: 4px; }
+  .confirm-modal-danger p { font-size: 13px; color: #7f1d1d; margin: 0; line-height: 1.6; }
 `
 
 export function AdminAlumnosView() {
@@ -325,6 +343,11 @@ export function AdminAlumnosView() {
 
   // Restore password result modal
   const [restoreResult, setRestoreResult] = useState<{ alumno: string; password: string } | null>(null)
+
+  // Anular matrícula / Eliminar alumno
+  const [confirmAnular, setConfirmAnular] = useState<{ alumno: AlumnoListItem } | null>(null)
+  const [confirmEliminar, setConfirmEliminar] = useState<{ alumno: AlumnoListItem } | null>(null)
+  const [accionProcesando, setAccionProcesando] = useState(false)
 
   // Load ciclos on mount, then try to load ciclo vigente by default
   useEffect(() => {
@@ -497,6 +520,40 @@ export function AdminAlumnosView() {
   const initials = (a: AlumnoListItem) =>
     `${(a.nombres?.[0] ?? '').toUpperCase()}${(a.apellidos?.[0] ?? '').toUpperCase()}`
 
+  // ── Anular matrícula ──
+  const handleAnularMatricula = async () => {
+    if (!confirmAnular || !selectedCicloId) return
+    setAccionProcesando(true)
+    setError('')
+    try {
+      await adminApi.anularMatricula(confirmAnular.alumno.codigo!, selectedCicloId)
+      setSuccess(`Matrícula de ${confirmAnular.alumno.nombres} ${confirmAnular.alumno.apellidos} anulada.`)
+      setConfirmAnular(null)
+      cargarAlumnosPorCiclo(selectedCicloId)
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al anular la matrícula.')
+    } finally {
+      setAccionProcesando(false)
+    }
+  }
+
+  // ── Eliminar alumno ──
+  const handleEliminarAlumno = async () => {
+    if (!confirmEliminar) return
+    setAccionProcesando(true)
+    setError('')
+    try {
+      await adminApi.eliminarAlumno(confirmEliminar.alumno.codigo!)
+      setSuccess(`Alumno ${confirmEliminar.alumno.nombres} ${confirmEliminar.alumno.apellidos} eliminado del sistema.`)
+      setConfirmEliminar(null)
+      if (selectedCicloId) cargarAlumnosPorCiclo(selectedCicloId)
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al eliminar el alumno.')
+    } finally {
+      setAccionProcesando(false)
+    }
+  }
+
   if (loading && ciclos.length === 0) return (
     <div className="alumnos-wrap">
       <style>{styles}</style>
@@ -641,7 +698,7 @@ export function AdminAlumnosView() {
                       </td>
                       <td>
                         {a.codigo && (
-                          <>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             <button className="btn-qr" onClick={() => verQr(a.codigo!)}>
                               <i className="bi bi-qr-code" /> QR
                             </button>
@@ -657,7 +714,23 @@ export function AdminAlumnosView() {
                               <i className="bi bi-key-fill" />
                               {restoringCodigo === a.codigo ? '...' : 'Clave'}
                             </button>
-                          </>
+                            {selectedCicloId && (
+                              <button
+                                className="btn-anular"
+                                onClick={() => setConfirmAnular({ alumno: a })}
+                                title="Anular matrícula en este ciclo"
+                              >
+                                <i className="bi bi-x-circle" /> Anular
+                              </button>
+                            )}
+                            <button
+                              className="btn-del-alumno"
+                              onClick={() => setConfirmEliminar({ alumno: a })}
+                              title="Eliminar alumno del sistema"
+                            >
+                              <i className="bi bi-trash3" /> Eliminar
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -719,6 +792,72 @@ export function AdminAlumnosView() {
             <div className="modal-footer-cec">
               <button className="btn-modal-primary" onClick={() => setRestoreResult(null)}>
                 <i className="bi bi-check" /> Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirmar Anular Matrícula ── */}
+      {confirmAnular && (
+        <div className="modal-overlay" onClick={() => !accionProcesando && setConfirmAnular(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-cec">
+              <h5><i className="bi bi-x-circle-fill me-2" style={{ color: '#e76f51' }} />Anular Matrícula</h5>
+              <button className="modal-close-btn" onClick={() => setConfirmAnular(null)} disabled={accionProcesando}><i className="bi bi-x-lg" /></button>
+            </div>
+            <div className="modal-body-cec">
+              <div className="confirm-modal-danger">
+                <p>
+                  ¿Anular la matrícula de <strong>{confirmAnular.alumno.nombres} {confirmAnular.alumno.apellidos}</strong> ({confirmAnular.alumno.codigo}) en el ciclo actual?
+                  <br /><br />
+                  <span style={{ fontSize: 12 }}>El alumno seguirá en el sistema pero dejará de aparecer en este ciclo. Se eliminarán sus registros de asistencia en este ciclo.</span>
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer-cec">
+              <button className="btn-modal-secondary" onClick={() => setConfirmAnular(null)} disabled={accionProcesando}>
+                <i className="bi bi-x" /> Cancelar
+              </button>
+              <button
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 9, border: 'none', background: '#e76f51', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: accionProcesando ? .6 : 1 }}
+                onClick={handleAnularMatricula}
+                disabled={accionProcesando}
+              >
+                <i className="bi bi-x-circle" /> {accionProcesando ? 'Anulando...' : 'Sí, anular matrícula'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirmar Eliminar Alumno ── */}
+      {confirmEliminar && (
+        <div className="modal-overlay" onClick={() => !accionProcesando && setConfirmEliminar(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-cec">
+              <h5><i className="bi bi-trash3-fill me-2" style={{ color: '#c1121f' }} />Eliminar Alumno</h5>
+              <button className="modal-close-btn" onClick={() => setConfirmEliminar(null)} disabled={accionProcesando}><i className="bi bi-x-lg" /></button>
+            </div>
+            <div className="modal-body-cec">
+              <div className="confirm-modal-danger">
+                <p>
+                  ¿Eliminar <strong>permanentemente</strong> a <strong>{confirmEliminar.alumno.nombres} {confirmEliminar.alumno.apellidos}</strong> ({confirmEliminar.alumno.codigo}) del sistema?
+                  <br /><br />
+                  <strong style={{ color: '#c1121f' }}>Esta acción es irreversible.</strong> Se eliminarán todas sus matrículas, asistencias y calificaciones.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer-cec">
+              <button className="btn-modal-secondary" onClick={() => setConfirmEliminar(null)} disabled={accionProcesando}>
+                <i className="bi bi-x" /> Cancelar
+              </button>
+              <button
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 9, border: 'none', background: '#c1121f', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: accionProcesando ? .6 : 1 }}
+                onClick={handleEliminarAlumno}
+                disabled={accionProcesando}
+              >
+                <i className="bi bi-trash3" /> {accionProcesando ? 'Eliminando...' : 'Sí, eliminar alumno'}
               </button>
             </div>
           </div>

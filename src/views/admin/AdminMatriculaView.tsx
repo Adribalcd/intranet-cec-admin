@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../models/adminApi'
-import type { Ciclo, MatriculaMasivaItem } from '../../models/types'
+import type { Ciclo } from '../../models/types'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
 // --- ESTILOS UNIFICADOS ---
@@ -43,6 +43,8 @@ const styles = `
     border-radius: 9px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
   }
   .btn-excel { background: var(--excel-green); color: white; border: none; padding: 10px 20px; border-radius: 9px; cursor: pointer; font-weight: 600; }
+  .btn-excel-outline { background: white; color: var(--excel-green); border: 2px solid var(--excel-green); padding: 8px 16px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-excel-outline:hover { background: #f0fdf4; }
   .alert { padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; display: flex; align-items: center; gap: 10px; }
   .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
   .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
@@ -86,6 +88,20 @@ export function AdminMatriculaView() {
     } catch (err: any) {
       setMsg({ type: 'error', text: err.response?.data?.error || 'Error en matrícula manual.' });
     } finally { setIsSubmitting(false); }
+  }
+
+  const descargarPlantilla = async () => {
+    try {
+      const res = await adminApi.plantillaMasivaExcel()
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'plantilla_matricula_masiva.xlsx'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setMsg({ type: 'error', text: 'Error al descargar la plantilla.' })
+    }
   }
 
   const handleExcelUpload = async (e: React.FormEvent) => {
@@ -171,8 +187,13 @@ export function AdminMatriculaView() {
 
       {/* SECCIÓN 2: CARGA MASIVA EXCEL */}
       <div className="mat-card">
-        <div className="mat-card-header excel">
-          <i className="bi bi-file-earmark-excel-fill text-success" /> <p className="mat-card-title">Carga Masiva vía Excel</p>
+        <div className="mat-card-header excel" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <i className="bi bi-file-earmark-excel-fill text-success" /> <p className="mat-card-title">Carga Masiva vía Excel</p>
+          </div>
+          <button type="button" className="btn-excel-outline" onClick={descargarPlantilla} title="Descargar plantilla Excel de ejemplo">
+            <i className="bi bi-download" /> Plantilla
+          </button>
         </div>
         <div className="mat-card-body">
           <form onSubmit={handleExcelUpload} className="mat-form-row cols-3">
