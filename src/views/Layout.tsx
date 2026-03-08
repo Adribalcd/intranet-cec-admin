@@ -298,6 +298,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <i className="bi bi-folder-fill" /> Materiales
                   </NavLink>
                 </li>
+                <li>
+                  <NavLink className="cec-nav-link" to="/admin/carnets">
+                    <i className="bi bi-credit-card-2-front-fill" /> Carnets
+                  </NavLink>
+                </li>
               </ul>
             </>
           )}

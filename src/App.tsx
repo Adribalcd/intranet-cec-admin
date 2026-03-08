@@ -13,6 +13,7 @@ import { AdminExamenesView } from './views/admin/AdminExamenesView'
 import { AdminAlumnosView } from './views/admin/AdminAlumnosView'
 import { AdminHorarioView } from './views/admin/AdminHorarioView'
 import { AdminMaterialesView } from './views/admin/AdminMaterialesView'
+import { AdminCarnetsView } from './views/admin/AdminCarnetsView'
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
@@ -124,6 +125,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <AdminMaterialesView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/carnets"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <AdminCarnetsView />
             </Layout>
           </ProtectedRoute>
         }
