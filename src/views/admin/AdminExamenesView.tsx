@@ -212,6 +212,18 @@ const styles = `
     background: var(--teal-mid); color: white; font-size: 11px;
     display: flex; align-items: center; justify-content: center;
   }
+  .exam-notas-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    background: #dcfce7; color: #166534; border: 1px solid #86efac;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .exam-notas-badge-none {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600;
+    background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0;
+    white-space: nowrap; flex-shrink: 0;
+  }
 
   /* Divider */
   .exam-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; }
@@ -523,6 +535,9 @@ export function AdminExamenesView() {
       setRanking(sorted)
       setRankingExamen(selectedExamen)
       setCalifFilas([{ codigoAlumno: '', nota: '', buenas: '', malas: '' }])
+      if (cicloNotasId) {
+        adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r) => setExamenesLista(Array.isArray(r.data) ? r.data : []))
+      }
     } catch {
       setError('Error al registrar calificaciones.')
     } finally {
@@ -555,7 +570,12 @@ export function AdminExamenesView() {
     if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
     clearAlerts()
     adminApi.postExamenNotasExcel(selectedExamen.id, file)
-      .then(() => setSuccess('Notas cargadas desde Excel con orden de mérito.'))
+      .then(() => {
+        setSuccess('Notas cargadas desde Excel con orden de mérito.')
+        if (cicloNotasId) {
+          adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r) => setExamenesLista(Array.isArray(r.data) ? r.data : []))
+        }
+      })
       .catch(() => setError('Error al subir el Excel.'))
   }
 
@@ -827,6 +847,12 @@ export function AdminExamenesView() {
                             <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 10 }}>#{ex.id}</span>
                           </div>
                         </div>
+                        {(() => {
+                          const n = parseInt((ex as any).cantidadNotas ?? '0', 10)
+                          return n > 0
+                            ? <span className="exam-notas-badge"><i className="bi bi-check-circle-fill" />{n} notas</span>
+                            : <span className="exam-notas-badge-none"><i className="bi bi-dash-circle" />Sin notas</span>
+                        })()}
                         {selectedExamen?.id === ex.id && (
                           <div className="exam-list-item-check"><i className="bi bi-check-lg" /></div>
                         )}
