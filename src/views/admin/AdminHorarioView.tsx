@@ -16,6 +16,12 @@ function horaToNext(h: string) {
   return `${String(next).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
 
+function calcSpan(horaInicio: string, horaFin: string): number {
+  const [h1] = horaInicio.split(':').map(Number)
+  const [h2] = horaFin.split(':').map(Number)
+  return Math.max(1, h2 - h1)
+}
+
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
@@ -472,38 +478,63 @@ export function AdminHorarioView() {
                 </tr>
               </thead>
               <tbody>
-                {HORAS.map((hora) => (
-                  <tr key={hora}>
-                    <td>{hora}</td>
-                    {DIAS.map((dia) => {
-                      const celdas = getCelda(dia, hora)
-                      return (
-                        <td key={dia}>
-                          {celdas.length > 0 ? (
-                            celdas.map((h) => (
-                              <div key={h.id} className="hor-cell filled" onClick={() => abrirModal(dia, hora, h)}>
-                                <div className="hor-cell-block">
-                                  <div className="hor-cell-block-name">{h.cursoNombre}</div>
-                                  <div className="hor-cell-block-time">{padHour(h.horaInicio)}–{padHour(h.horaFin)}</div>
+                {(() => {
+                  // Tracks cells already covered by a rowspan from a block above
+                  const skip: Record<string, Set<string>> = {}
+                  DIAS.forEach((d) => { skip[d] = new Set() })
+
+                  return HORAS.map((hora) => (
+                    <tr key={hora}>
+                      <td>{hora}</td>
+                      {DIAS.map((dia) => {
+                        // This cell is covered by a rowspan from a block that started earlier
+                        if (skip[dia].has(hora)) return null
+
+                        const celdas = getCelda(dia, hora)
+                        if (celdas.length > 0) {
+                          const span = celdas.reduce((max, h) =>
+                            Math.max(max, calcSpan(padHour(h.horaInicio), padHour(h.horaFin))), 1)
+                          // Mark subsequent rows as skipped for this column
+                          for (let i = 1; i < span; i++) {
+                            const nextHora = HORAS[HORAS.indexOf(hora) + i]
+                            if (nextHora) skip[dia].add(nextHora)
+                          }
+                          const cellH = span * 52 + (span - 1)
+                          return (
+                            <td key={dia} rowSpan={span} style={{ verticalAlign: 'top', padding: 0 }}>
+                              {celdas.map((h) => (
+                                <div
+                                  key={h.id}
+                                  className="hor-cell filled"
+                                  style={{ height: cellH, alignItems: 'flex-start', paddingTop: 8 }}
+                                  onClick={() => abrirModal(dia, hora, h)}
+                                >
+                                  <div className="hor-cell-block">
+                                    <div className="hor-cell-block-name">{h.cursoNombre}</div>
+                                    <div className="hor-cell-block-time">{padHour(h.horaInicio)}–{padHour(h.horaFin)}</div>
+                                  </div>
+                                  <button className="hor-cell-delete" onClick={(e) => handleEliminar(h, e)}>
+                                    <i className="bi bi-x" />
+                                  </button>
                                 </div>
-                                <button className="hor-cell-delete" onClick={(e) => handleEliminar(h, e)}>
-                                  <i className="bi bi-x" />
-                                </button>
-                              </div>
-                            ))
-                          ) : (
+                              ))}
+                            </td>
+                          )
+                        }
+                        return (
+                          <td key={dia}>
                             <div
                               className="hor-cell empty"
                               onClick={() => cursoId ? abrirModal(dia, hora) : setError('Selecciona un curso primero para agregar bloques.')}
                             >
                               {cursoId ? <button className="hor-cell-add"><i className="bi bi-plus" /></button> : null}
                             </div>
-                          )}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))
+                })()}
               </tbody>
             </table>
           </div>
