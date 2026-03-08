@@ -243,7 +243,7 @@ export function AdminAsistenciaView() {
   const getEstadoClass = (estado: string) => {
     if (estado === 'Presente') return 'estado-presente'
     if (estado === 'Tardanza') return 'estado-tardanza'
-    if (estado === 'Faltó') return 'estado-falto'
+    if (estado === 'Falta' || estado === 'FALTO' || estado === 'Faltó') return 'estado-falto'
     return 'estado-inhabilitado'
   }
 
@@ -460,7 +460,7 @@ export function AdminAsistenciaView() {
                 {listado.length} registros —{' '}
                 <span style={{ color: '#065f46', fontWeight: 600 }}>{listado.filter(x => x.estado === 'Presente').length} presentes</span>,{' '}
                 <span style={{ color: '#92400e', fontWeight: 600 }}>{listado.filter(x => x.estado === 'Tardanza').length} tardanzas</span>,{' '}
-                <span style={{ color: '#991b1b', fontWeight: 600 }}>{listado.filter(x => x.estado === 'Faltó').length} faltas</span>
+                <span style={{ color: '#991b1b', fontWeight: 600 }}>{listado.filter(x => x.estado === 'Falta' || x.estado === 'FALTO' || x.estado === 'Faltó').length} faltas</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table className="asis-table">
