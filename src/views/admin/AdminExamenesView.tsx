@@ -872,6 +872,14 @@ export function AdminExamenesView() {
               </div>
             )}
 
+            {/* Aviso modo actualización */}
+            {selectedExamen && parseInt((selectedExamen as any).cantidadNotas ?? '0', 10) > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
+                <i className="bi bi-pencil-square" style={{ fontSize: 14, flexShrink: 0 }} />
+                <span>Este examen ya tiene <strong>{(selectedExamen as any).cantidadNotas} notas</strong> registradas. Puedes ingresar los mismos códigos para actualizarlas — no se crearán duplicados.</span>
+              </div>
+            )}
+
             {/* Filas de notas manuales */}
             {selectedExamen && (
               <form onSubmit={handleRegistrarCalificaciones}>
@@ -933,8 +941,10 @@ export function AdminExamenesView() {
                   {califFilas.some((f) => f.codigoAlumno && (f.nota || (f.buenas && f.malas))) && (
                     <button type="submit" className="btn-registrar-notas" disabled={registrando}>
                       {registrando
-                        ? <><div className="exam-spinner-sm" /> Registrando...</>
-                        : <><i className="bi bi-check2-all" /> Registrar {califFilas.filter(f => f.codigoAlumno && (f.nota || f.buenas)).length} nota(s)</>}
+                        ? <><div className="exam-spinner-sm" /> Guardando...</>
+                        : parseInt((selectedExamen as any).cantidadNotas ?? '0', 10) > 0
+                          ? <><i className="bi bi-arrow-repeat" /> Actualizar {califFilas.filter(f => f.codigoAlumno && (f.nota || f.buenas)).length} nota(s)</>
+                          : <><i className="bi bi-check2-all" /> Registrar {califFilas.filter(f => f.codigoAlumno && (f.nota || f.buenas)).length} nota(s)</>}
                     </button>
                   )}
                 </div>
