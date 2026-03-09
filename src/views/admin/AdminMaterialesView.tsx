@@ -222,6 +222,28 @@ const styles = `
   .mats-file-attached { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--teal-dark); font-weight: 600; }
   .mats-file-clear { background: none; border: none; cursor: pointer; color: var(--danger); font-size: 14px; padding: 0 2px; }
 
+  /* Fuente del material — alternativas claras */
+  .mats-fuente-cell { display: flex; flex-direction: column; gap: 0; min-width: 280px; }
+  .mats-fuente-section {
+    padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: #fafafa; transition: border-color 0.15s;
+  }
+  .mats-fuente-section:focus-within { border-color: var(--purple); background: white; }
+  .mats-fuente-section-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); margin-bottom: 5px; display: flex; align-items: center; gap: 5px;
+  }
+  .mats-fuente-section-label i { font-size: 12px; }
+  .mats-or-divider {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 2px; font-size: 10px; font-weight: 700;
+    color: #adb5bd; text-transform: uppercase; letter-spacing: 0.1em;
+    user-select: none;
+  }
+  .mats-or-divider::before, .mats-or-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
   @media (max-width: 768px) {
     .mats-filters { grid-template-columns: 1fr; }
     .mats-curso-list { grid-template-columns: 1fr 1fr; }
@@ -554,9 +576,12 @@ export function AdminMaterialesView() {
                   <tr>
                     <th style={{ width: 80 }}>Semana</th>
                     <th>Nombre / Descripción</th>
-                    <th>Enlace Google Drive</th>
-                    <th>URL externa (opcional)</th>
-                    <th>Archivo físico (PDF / PPT / Imagen)</th>
+                    <th>
+                      Fuente del material
+                      <div style={{ fontSize: 9, fontWeight: 500, color: '#adb5bd', textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>
+                        enlace externo <em>o</em> archivo adjunto — elige uno
+                      </div>
+                    </th>
                     <th>Acción</th>
                   </tr>
                 </thead>
@@ -579,98 +604,92 @@ export function AdminMaterialesView() {
                           onChange={(e) => updateRow(i, 'nombre', e.target.value)}
                         />
                       </td>
+                      {/* Fuente: enlace externo O archivo — elige uno */}
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <input
-                            className="mats-input"
-                            type="url" placeholder="https://drive.google.com/..."
-                            value={row.urlDrive}
-                            onChange={(e) => updateRow(i, 'urlDrive', e.target.value)}
-                          />
-                          {row.urlDrive && (
-                            <a
-                              href={row.urlDrive} target="_blank" rel="noopener noreferrer"
-                              className="mats-drive-link" title="Abrir en Drive"
-                            >
-                              <i className="bi bi-box-arrow-up-right" />
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <input
-                          className="mats-input"
-                          type="url" placeholder="https://..."
-                          value={row.urlArchivo}
-                          onChange={(e) => updateRow(i, 'urlArchivo', e.target.value)}
-                        />
-                      </td>
-                      <td style={{ minWidth: 160 }}>
-                        {/* Hidden native file input */}
-                        <input
-                          type="file"
-                          accept=".pdf,.ppt,.pptx,image/*"
-                          style={{ display: 'none' }}
-                          ref={(el) => { fileInputRefs.current[i] = el }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null
-                            handleFileChange(i, file)
-                          }}
-                        />
+                        <div className="mats-fuente-cell">
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {/* Show existing urlArchivo as a link if no pending file */}
-                          {row.urlArchivo && !row.fileToUpload && (
-                            <div className="mats-file-attached">
-                              <span>📎</span>
-                              <a
-                                href={row.urlArchivo}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: 'var(--teal-dark)', textDecoration: 'none', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                title={row.urlArchivo}
-                              >
-                                {getBasename(row.urlArchivo)}
-                              </a>
-                              <button
-                                className="mats-file-clear"
-                                title="Quitar enlace de archivo"
-                                onClick={() => updateRow(i, 'urlArchivo', '')}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Show pending file to upload */}
-                          {row.fileToUpload && (
-                            <div className="mats-file-attached">
-                              <span>📎</span>
-                              <span
-                                style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                title={row.fileToUpload.name}
-                              >
-                                {row.fileToUpload.name}
+                          {/* OPCIÓN A — Enlace externo */}
+                          <div className="mats-fuente-section">
+                            <div className="mats-fuente-section-label">
+                              <i className="bi bi-link-45deg" />
+                              Enlace externo
+                              <span style={{ fontWeight: 500, color: '#adb5bd', textTransform: 'none', letterSpacing: 0 }}>
+                                Drive, YouTube, web…
                               </span>
-                              <button
-                                className="mats-file-clear"
-                                title="Quitar archivo"
-                                onClick={() => clearFile(i)}
-                              >
-                                ×
-                              </button>
                             </div>
-                          )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                className="mats-input"
+                                type="url"
+                                placeholder="https://drive.google.com/…  o  https://youtu.be/…"
+                                value={row.urlDrive}
+                                onChange={(e) => updateRow(i, 'urlDrive', e.target.value)}
+                                style={{ fontSize: 12 }}
+                              />
+                              {row.urlDrive && (
+                                <a href={row.urlDrive} target="_blank" rel="noopener noreferrer"
+                                  className="mats-drive-link" title="Abrir enlace">
+                                  <i className="bi bi-box-arrow-up-right" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
 
-                          {/* File picker button */}
-                          <button
-                            className="mats-file-btn"
-                            type="button"
-                            onClick={() => fileInputRefs.current[i]?.click()}
-                          >
-                            <i className="bi bi-upload" />
-                            {row.fileToUpload ? 'Cambiar' : 'Subir archivo'}
-                          </button>
+                          {/* Divisor */}
+                          <div className="mats-or-divider">o bien</div>
+
+                          {/* OPCIÓN B — Subir archivo */}
+                          <div className="mats-fuente-section">
+                            <div className="mats-fuente-section-label">
+                              <i className="bi bi-paperclip" />
+                              Subir archivo
+                              <span style={{ fontWeight: 500, color: '#adb5bd', textTransform: 'none', letterSpacing: 0 }}>
+                                PDF, PPT, imagen
+                              </span>
+                            </div>
+
+                            {/* Hidden file input */}
+                            <input
+                              type="file"
+                              accept=".pdf,.ppt,.pptx,image/*"
+                              style={{ display: 'none' }}
+                              ref={(el) => { fileInputRefs.current[i] = el }}
+                              onChange={(e) => handleFileChange(i, e.target.files?.[0] ?? null)}
+                            />
+
+                            {/* Archivo ya guardado */}
+                            {row.urlArchivo && !row.fileToUpload && (
+                              <div className="mats-file-attached" style={{ marginBottom: 4 }}>
+                                <span>📎</span>
+                                <a href={row.urlArchivo} target="_blank" rel="noopener noreferrer"
+                                  style={{ color: 'var(--teal-dark)', textDecoration: 'none', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}
+                                  title={row.urlArchivo}>
+                                  {getBasename(row.urlArchivo)}
+                                </a>
+                                <button className="mats-file-clear" title="Quitar archivo"
+                                  onClick={() => updateRow(i, 'urlArchivo', '')}>×</button>
+                              </div>
+                            )}
+
+                            {/* Archivo pendiente de subir */}
+                            {row.fileToUpload && (
+                              <div className="mats-file-attached" style={{ marginBottom: 4 }}>
+                                <span>📎</span>
+                                <span style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}
+                                  title={row.fileToUpload.name}>
+                                  {row.fileToUpload.name}
+                                </span>
+                                <button className="mats-file-clear" title="Quitar" onClick={() => clearFile(i)}>×</button>
+                              </div>
+                            )}
+
+                            <button className="mats-file-btn" type="button"
+                              onClick={() => fileInputRefs.current[i]?.click()}>
+                              <i className="bi bi-upload" />
+                              {row.fileToUpload ? 'Cambiar archivo' : (row.urlArchivo ? 'Reemplazar' : 'Seleccionar archivo')}
+                            </button>
+                          </div>
+
                         </div>
                       </td>
                       <td>
@@ -695,8 +714,8 @@ export function AdminMaterialesView() {
               }}>
                 <span>{rows.length} material(es) en este curso</span>
                 <span>
-                  {rows.filter((r) => r.urlDrive).length} con Drive &bull;{' '}
-                  {rows.filter((r) => !r.urlDrive).length} sin Drive
+                  {rows.filter((r) => r.urlDrive).length} con enlace &bull;{' '}
+                  {rows.filter((r) => r.urlArchivo || r.fileToUpload).length} con archivo
                 </span>
               </div>
             </div>
