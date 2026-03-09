@@ -328,6 +328,7 @@ export function AdminMaterialesView() {
         nombre: m.nombre || '',
         urlDrive: m.url_drive ?? m.urlDrive ?? '',
         urlArchivo: m.url_archivo ?? m.urlArchivo ?? '',
+        tipoArchivo: m.tipo_archivo ?? m.tipoArchivo ?? '',
         fileToUpload: null,
       })))
     } catch {
