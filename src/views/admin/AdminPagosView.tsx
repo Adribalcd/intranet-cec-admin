@@ -645,6 +645,25 @@ export function AdminPagosView() {
                 <input style={s.input} type="number" value={conceptoForm.orden} onChange={e => setConceptoForm((f: any) => ({ ...f, orden: Number(e.target.value) }))} />
               </div>
             </div>
+
+            <div style={{ background: '#f0f7f8', padding: '12px 16px', borderRadius: 10, border: '1px solid #cde0e4', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input 
+                  type="checkbox" 
+                  id="chkPermiteOnline"
+                  checked={conceptoForm.permite_pago_online} 
+                  onChange={e => setConceptoForm((f: any) => ({ ...f, permite_pago_online: e.target.checked }))}
+                  style={{ width: 18, height: 18, cursor: 'pointer' }}
+                />
+                <label htmlFor="chkPermiteOnline" style={{ fontSize: 13, fontWeight: 700, color: '#0d4f5c', cursor: 'pointer' }}>
+                   Habilitar botón "Pagar en Línea" para el alumno
+                </label>
+              </div>
+              <p style={{ fontSize: 12, color: '#6c8a91', margin: '6px 0 0 28px', lineHeight: '1.4' }}>
+                Si activas esto, los alumnos verán un botón en su intranet para registrar este pago enviando su comprobante (BCP, BBVA, Yape, etc).
+              </p>
+            </div>
+
             <div style={{ ...s.row, justifyContent: 'flex-end', marginTop: 8 }}>
               <button style={s.btnSecondary} onClick={() => setShowConceptoModal(false)}>Cancelar</button>
               <button style={s.btnPrimary} onClick={saveConcepto}>Guardar</button>
@@ -699,6 +718,25 @@ export function AdminPagosView() {
               <input style={s.input} value={pagoForm.numero_operacion} onChange={e => setPagoForm((f: any) => ({ ...f, numero_operacion: e.target.value }))} placeholder="Ej: 123456789" />
             </div>
             <div style={s.formGroup}>
+              <div style={s.label}>Observaciones</div>
+              <textarea style={{ ...s.input, minHeight: 64, resize: 'vertical' as const }} value={pagoForm.observaciones} onChange={e => setPagoForm((f: any) => ({ ...f, observaciones: e.target.value }))} />
+            </div>
+            <div style={{ ...s.row, marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                <input type="checkbox" checked={pagoForm.visible_alumno} onChange={e => setPagoForm((f: any) => ({ ...f, visible_alumno: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
+                Visible para el alumno
+              </label>
+            </div>
+            <div style={{ ...s.row, justifyContent: 'flex-end', gap: 10 }}>
+              <button style={s.btnSecondary} onClick={() => setShowPagoModal(false)}>Cancelar</button>
+              <button style={s.btnPrimary} onClick={savePago}>Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
               <div style={s.label}>Observaciones</div>
               <textarea style={{ ...s.input, minHeight: 64, resize: 'vertical' as const }} value={pagoForm.observaciones} onChange={e => setPagoForm((f: any) => ({ ...f, observaciones: e.target.value }))} />
             </div>
