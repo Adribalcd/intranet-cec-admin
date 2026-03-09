@@ -215,4 +215,14 @@ export const adminApi = {
   deletePago(id: number) { return api.delete(`${PREFIX}/pago/${id}`) },
   toggleVisibilidadPago(id: number) { return api.put<any>(`${PREFIX}/pago/${id}/visibilidad`, {}) },
   toggleSuspension(codigo: string) { return api.put<any>(`${PREFIX}/alumno/${encodeURIComponent(codigo)}/suspender`, {}) },
+
+  // --- Config pagos por ciclo
+  getConfigPagos(cicloId: number) { return api.get<any>(`${PREFIX}/ciclos/${cicloId}/config-pagos`) },
+  upsertConfigPagos(cicloId: number, body: any) { return api.put<any>(`${PREFIX}/ciclos/${cicloId}/config-pagos`, body) },
+
+  // --- Pagos online
+  getPagosOnlinePendientes() { return api.get<any[]>(`${PREFIX}/pagos/pendientes-online`) },
+  confirmarPago(id: number, body: { accion: 'confirmar' | 'rechazar'; observaciones?: string }) {
+    return api.put<any>(`${PREFIX}/pago/${id}/confirmar`, body)
+  },
 }
