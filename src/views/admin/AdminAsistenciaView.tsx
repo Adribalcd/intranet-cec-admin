@@ -252,6 +252,14 @@ export function AdminAsistenciaView() {
     return now.getHours() * 60 + now.getMinutes() > 8 * 60 + 15
   }
 
+  // Lunes(1)–Sábado(6), 07:00–11:00
+  const esDentroHorarioRegistro = () => {
+    const now = new Date()
+    const dia = now.getDay()          // 0=Dom, 1=Lun, ..., 6=Sáb
+    const min = now.getHours() * 60 + now.getMinutes()
+    return dia >= 1 && dia <= 6 && min >= 7 * 60 && min < 11 * 60
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#0a9396' }}>Cargando módulo de asistencia...</div>
 
   return (
@@ -312,7 +320,30 @@ export function AdminAsistenciaView() {
       {/* TAB: REGISTRO */}
       {tab === 'registro' && (
         <div className="asis-card">
-          {!alumnoValidado ? (
+          {!esDentroHorarioRegistro() ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                background: 'linear-gradient(135deg,#fef3c7,#fde68a)',
+                border: '2px solid #fcd34d',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 28, marginBottom: 16,
+              }}>
+                <i className="bi bi-clock-history" style={{ color: '#92400e' }} />
+              </div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
+                Registro de asistencia no disponible
+              </p>
+              <p style={{ fontSize: 13, color: '#6c757d', maxWidth: 380, margin: '0 auto' }}>
+                No es posible registrar asistencia para el día de hoy.<br />
+                Si desea registrar asistencia contactar con soporte.
+              </p>
+              <p style={{ fontSize: 12, color: '#adb5bd', marginTop: 14 }}>
+                <i className="bi bi-info-circle" style={{ marginRight: 5 }} />
+                Horario disponible: <strong>Lunes a Sábado, 07:00 – 11:00</strong>
+              </p>
+            </div>
+          ) : !alumnoValidado ? (
             <form onSubmit={handleValidar}>
               <label className="asis-label">Código o DNI del Alumno</label>
               <div style={{ display: 'flex', gap: 10, marginBottom: 0 }}>

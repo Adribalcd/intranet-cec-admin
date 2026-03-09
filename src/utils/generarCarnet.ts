@@ -26,6 +26,12 @@ async function urlToDataUrl(url: string): Promise<string> {
   })
 }
 
+function imgFormat(dataUrl: string): 'JPEG' | 'PNG' | 'WEBP' {
+  if (dataUrl.startsWith('data:image/png'))  return 'PNG'
+  if (dataUrl.startsWith('data:image/webp')) return 'WEBP'
+  return 'JPEG'
+}
+
 async function getQrDataUrl(codigo: string): Promise<string> {
   const resp = await api.get(`/api/admin/alumno/${encodeURIComponent(codigo)}/qr`, {
     responseType: 'blob',
@@ -79,7 +85,7 @@ export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
   // ── Logo sobre fondo blanco (cuadrito blanco dentro del header) ─
   doc.setFillColor(...WHITE)
   doc.rect(31.5, 0.8, 11.5, 11.5, 'F')
-  doc.addImage(logoDataUrl, 'JPEG', 31.8, 1, 11, 11)
+  doc.addImage(logoDataUrl, imgFormat(logoDataUrl), 31.8, 1, 11, 11)
 
   // ── Texto header ─────────────────────────────────────────────
   doc.setTextColor(...WHITE)
@@ -105,7 +111,7 @@ export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
   // ── Foto del alumno ──────────────────────────────────────────
   const fX = 1.5, fY = 1, fW = 27, fH = 50
   if (fotoDataUrl) {
-    doc.addImage(fotoDataUrl, 'JPEG', fX, fY, fW, fH)
+    doc.addImage(fotoDataUrl, imgFormat(fotoDataUrl), fX, fY, fW, fH)
   } else {
     doc.setFillColor(20, 95, 110)
     doc.rect(fX, fY, fW, fH, 'F')
@@ -150,7 +156,7 @@ export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
   if (qrDataUrl) {
     doc.setFillColor(...WHITE)
     doc.rect(qrX - 0.5, qrY - 0.5, qrSize + 1, qrSize + 1, 'F')
-    doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
+    doc.addImage(qrDataUrl, imgFormat(qrDataUrl), qrX, qrY, qrSize, qrSize)
   }
 
   // DNI bajo el QR (código legible)
@@ -191,7 +197,7 @@ export async function generarCarnet(alumno: CarnetAlumno): Promise<Blob> {
   doc.setFillColor(...TEAL_LIGHT)
   doc.rect(0, H - 2.5, W, 2.5, 'F')
 
-  return doc.output('blob')
+  return new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
 }
 
 export async function descargarCarnet(alumno: CarnetAlumno) {

@@ -194,6 +194,44 @@ const styles = `
   }
   .calif-empty i { font-size: 26px; color: var(--teal-light); display: block; margin-bottom: 6px; }
 
+  /* ── Contenedor scrolleable de filas ── */
+  .calif-scroll-wrap {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px;
+  }
+  .calif-scroll-header {
+    display: grid; grid-template-columns: 1fr 0.7fr 30px;
+    gap: 8px; padding: 7px 12px;
+    background: var(--teal-dark);
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: rgba(255,255,255,0.75);
+  }
+  .calif-scroll-body {
+    max-height: 460px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 0; background: white;
+  }
+  .calif-scroll-body::-webkit-scrollbar { width: 4px; }
+  .calif-scroll-body::-webkit-scrollbar-track { background: #f1f5f9; }
+  .calif-scroll-body::-webkit-scrollbar-thumb { background: var(--teal-light); border-radius: 10px; }
+  .calif-scroll-body .calif-row {
+    border-radius: 0; border-left: 3px solid transparent;
+    border-right: none; border-top: none; border-bottom: 1px solid #f0f4f5;
+    background: white;
+  }
+  .calif-scroll-body .calif-row:last-child { border-bottom: none; }
+  .calif-scroll-body .calif-row:hover { background: var(--teal-pale); border-left-color: var(--teal-light); }
+  /* Fila con nota ya registrada */
+  .calif-row-existente {
+    border-left-color: var(--green-mid) !important;
+    background: linear-gradient(90deg, #f0fdf9 0%, white 60%) !important;
+  }
+  .calif-row-existente:hover { background: linear-gradient(90deg, #e6faf5 0%, var(--teal-pale) 60%) !important; }
+  /* Etiqueta "registrada" en el campo de nota */
+  .nota-reg-label {
+    font-size: 8px; font-weight: 800; color: var(--green-dark);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
+    display: flex; align-items: center; gap: 3px;
+  }
+
   /* Examen selector list */
   .exam-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
   .exam-list-item {
@@ -975,45 +1013,65 @@ export function AdminExamenesView() {
                     Agrega filas para ingresar notas.
                   </div>
                 ) : (
-                  <div className="calif-rows">
-                    {califFilas.map((f, i) => (
-                      <div key={i} className="calif-row">
-                        <div>
-                          {f.nombre
-                            ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0 }}>{f.nombre}</div>
-                            : <div className="calif-row-num">ALUMNO #{i + 1}</div>
-                          }
-                          <input type="text" placeholder="Código"
-                            value={f.codigoAlumno}
-                            onChange={(e) => updateFila(i, 'codigoAlumno', e.target.value)} />
-                        </div>
-                        {usaBuenasMalas ? (<>
-                          <div>
-                            <div className="calif-row-num">BUENAS</div>
-                            <input type="number" min={0} placeholder="0"
-                              value={f.buenas}
-                              onChange={(e) => updateFila(i, 'buenas', e.target.value)} />
+                  <div className="calif-scroll-wrap">
+                    {/* Cabecera de columnas */}
+                    <div className="calif-scroll-header">
+                      <span>Alumno</span>
+                      <span>{usaBuenasMalas ? 'Buenas / Malas' : 'Nota'}</span>
+                      <span />
+                    </div>
+                    <div className="calif-scroll-body">
+                      {califFilas.map((f, i) => {
+                        const tieneNota = f.nota !== '' || (f.buenas !== '' && f.malas !== '')
+                        return (
+                          <div key={i} className={`calif-row${tieneNota ? ' calif-row-existente' : ''}`}>
+                            <div>
+                              {f.nombre
+                                ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0 }}>{f.nombre}</div>
+                                : <div className="calif-row-num">ALUMNO #{i + 1}</div>
+                              }
+                              <input type="text" placeholder="Código"
+                                value={f.codigoAlumno}
+                                onChange={(e) => updateFila(i, 'codigoAlumno', e.target.value)} />
+                            </div>
+
+                            {usaBuenasMalas ? (
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                                <div>
+                                  {tieneNota && <div className="nota-reg-label"><i className="bi bi-check-circle-fill" style={{ fontSize: 7 }} />actual</div>}
+                                  <div className="calif-row-num" style={{ marginBottom: 2 }}>BUENAS</div>
+                                  <input type="number" min={0} placeholder="0"
+                                    value={f.buenas}
+                                    onChange={(e) => updateFila(i, 'buenas', e.target.value)} />
+                                </div>
+                                <div>
+                                  {tieneNota && <div className="nota-reg-label" style={{ visibility: 'hidden' }}>-</div>}
+                                  <div className="calif-row-num" style={{ marginBottom: 2 }}>MALAS</div>
+                                  <input type="number" min={0} placeholder="0"
+                                    value={f.malas}
+                                    onChange={(e) => updateFila(i, 'malas', e.target.value)} />
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                {tieneNota
+                                  ? <div className="nota-reg-label"><i className="bi bi-check-circle-fill" style={{ fontSize: 7 }} />registrada — modifica si es necesario</div>
+                                  : <div className="calif-row-num">NOTA</div>
+                                }
+                                <input type="number" step="0.01" min={0} max={20} placeholder="0.00"
+                                  value={f.nota}
+                                  onChange={(e) => updateFila(i, 'nota', e.target.value)} />
+                                {f.nota && <div style={{ marginTop: 3 }}>{notaBadge(f.nota)}</div>}
+                              </div>
+                            )}
+
+                            <button type="button" className="btn-remove-fila" onClick={() => removeFila(i)}>
+                              <i className="bi bi-trash3-fill" />
+                            </button>
                           </div>
-                          <div>
-                            <div className="calif-row-num">MALAS</div>
-                            <input type="number" min={0} placeholder="0"
-                              value={f.malas}
-                              onChange={(e) => updateFila(i, 'malas', e.target.value)} />
-                          </div>
-                        </>) : (
-                          <div>
-                            <div className="calif-row-num">NOTA</div>
-                            <input type="number" step="0.01" min={0} max={20} placeholder="0.00"
-                              value={f.nota}
-                              onChange={(e) => updateFila(i, 'nota', e.target.value)} />
-                            {f.nota && <div style={{ marginTop: 4 }}>{notaBadge(f.nota)}</div>}
-                          </div>
-                        )}
-                        <button type="button" className="btn-remove-fila" onClick={() => removeFila(i)}>
-                          <i className="bi bi-trash3-fill" />
-                        </button>
-                      </div>
-                    ))}
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -1021,15 +1079,20 @@ export function AdminExamenesView() {
                   <button type="button" className="btn-add-fila" onClick={addFila}>
                     <i className="bi bi-plus-circle" /> Agregar fila
                   </button>
-                  {califFilas.some((f) => f.codigoAlumno && (f.nota || (f.buenas && f.malas))) && (
-                    <button type="submit" className="btn-registrar-notas" disabled={registrando}>
-                      {registrando
-                        ? <><div className="exam-spinner-sm" /> Guardando...</>
-                        : parseInt((selectedExamen as any).cantidadNotas ?? '0', 10) > 0
-                          ? <><i className="bi bi-arrow-repeat" /> Actualizar {califFilas.filter(f => f.codigoAlumno && (f.nota || f.buenas)).length} nota(s)</>
-                          : <><i className="bi bi-check2-all" /> Registrar {califFilas.filter(f => f.codigoAlumno && (f.nota || f.buenas)).length} nota(s)</>}
-                    </button>
-                  )}
+                  {(() => {
+                    const filasValidas = califFilas.filter(f => f.codigoAlumno.trim() && (f.nota !== '' || (f.buenas !== '' && f.malas !== ''))).length
+                    const tieneExistentes = parseInt((selectedExamen as any).cantidadNotas ?? '0', 10) > 0
+                    if (filasValidas === 0) return null
+                    return (
+                      <button type="submit" className="btn-registrar-notas" disabled={registrando}>
+                        {registrando
+                          ? <><div className="exam-spinner-sm" /> Guardando...</>
+                          : tieneExistentes
+                            ? <><i className="bi bi-arrow-repeat" /> Actualizar {filasValidas} nota(s)</>
+                            : <><i className="bi bi-check2-all" /> Registrar {filasValidas} nota(s)</>}
+                      </button>
+                    )
+                  })()}
                 </div>
               </form>
             )}
