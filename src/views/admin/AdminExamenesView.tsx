@@ -543,9 +543,9 @@ export function AdminExamenesView() {
             setCalifFilas(notas.map((n) => ({
               codigoAlumno: n.codigo ?? '',
               nombre: `${n.nombres ?? ''} ${n.apellidos ?? ''}`.trim(),
-              nota: String(n.nota ?? ''),
-              buenas: '',
-              malas: '',
+              nota: String(n.valor ?? n.nota ?? ''),
+              buenas: String(n.buenas ?? ''),
+              malas: String(n.malas ?? ''),
             })))
           }
         })
@@ -1022,9 +1022,9 @@ export function AdminExamenesView() {
                     </div>
                     <div className="calif-scroll-body">
                       {califFilas.map((f, i) => {
-                        const tieneNota = f.nota !== '' || (f.buenas !== '' && f.malas !== '')
+                        const tieneRegistrada = f.nota !== '' || (f.buenas !== '' && f.malas !== '')
                         return (
-                          <div key={i} className={`calif-row${tieneNota ? ' calif-row-existente' : ''}`}>
+                          <div key={i} className={`calif-row${tieneRegistrada ? ' calif-row-existente' : ''}`}>
                             <div>
                               {f.nombre
                                 ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0 }}>{f.nombre}</div>
@@ -1038,14 +1038,14 @@ export function AdminExamenesView() {
                             {usaBuenasMalas ? (
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                                 <div>
-                                  {tieneNota && <div className="nota-reg-label"><i className="bi bi-check-circle-fill" style={{ fontSize: 7 }} />actual</div>}
+                                  {tieneRegistrada && <div className="nota-reg-label"><i className="bi bi-check-circle-fill" style={{ fontSize: 7 }} />actual</div>}
                                   <div className="calif-row-num" style={{ marginBottom: 2 }}>BUENAS</div>
                                   <input type="number" min={0} placeholder="0"
                                     value={f.buenas}
                                     onChange={(e) => updateFila(i, 'buenas', e.target.value)} />
                                 </div>
                                 <div>
-                                  {tieneNota && <div className="nota-reg-label" style={{ visibility: 'hidden' }}>-</div>}
+                                  {tieneRegistrada && <div className="nota-reg-label" style={{ visibility: 'hidden' }}>-</div>}
                                   <div className="calif-row-num" style={{ marginBottom: 2 }}>MALAS</div>
                                   <input type="number" min={0} placeholder="0"
                                     value={f.malas}
@@ -1054,7 +1054,7 @@ export function AdminExamenesView() {
                               </div>
                             ) : (
                               <div>
-                                {tieneNota
+                                {tieneRegistrada
                                   ? <div className="nota-reg-label"><i className="bi bi-check-circle-fill" style={{ fontSize: 7 }} />registrada — modifica si es necesario</div>
                                   : <div className="calif-row-num">NOTA</div>
                                 }
