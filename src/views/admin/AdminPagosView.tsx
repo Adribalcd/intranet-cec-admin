@@ -737,22 +737,3 @@ export function AdminPagosView() {
     </div>
   )
 }
-              <div style={s.label}>Observaciones</div>
-              <textarea style={{ ...s.input, minHeight: 64, resize: 'vertical' as const }} value={pagoForm.observaciones} onChange={e => setPagoForm((f: any) => ({ ...f, observaciones: e.target.value }))} />
-            </div>
-            <div style={s.formGroup}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                <input type="checkbox" checked={pagoForm.visible_alumno} onChange={e => setPagoForm((f: any) => ({ ...f, visible_alumno: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
-                Visible para el alumno
-              </label>
-            </div>
-            <div style={{ ...s.row, justifyContent: 'flex-end', marginTop: 8 }}>
-              <button style={s.btnSecondary} onClick={() => setShowPagoModal(false)}>Cancelar</button>
-              <button style={s.btnPrimary} onClick={savePago}>Guardar</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
