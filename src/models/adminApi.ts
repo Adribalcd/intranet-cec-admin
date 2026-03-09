@@ -202,4 +202,17 @@ export const adminApi = {
   reporteOrdenMerito(examenId: number) {
     return api.get(`${PREFIX}/reportes/orden-merito`, { params: { examenId }, responseType: 'blob' })
   },
+
+  // --- Pagos
+  getConceptosPago(cicloId: number) { return api.get<any[]>(`${PREFIX}/ciclos/${cicloId}/conceptos-pago`) },
+  createConceptoPago(cicloId: number, body: any) { return api.post<any>(`${PREFIX}/ciclos/${cicloId}/conceptos-pago`, body) },
+  updateConceptoPago(id: number, body: any) { return api.put<any>(`${PREFIX}/concepto-pago/${id}`, body) },
+  deleteConceptoPago(id: number) { return api.delete(`${PREFIX}/concepto-pago/${id}`) },
+  getResumenPagosCiclo(cicloId: number) { return api.get<any>(`${PREFIX}/ciclos/${cicloId}/resumen-pagos`) },
+  getPagosAlumno(alumnoId: number, cicloId: number) { return api.get<any[]>(`${PREFIX}/alumnos/${alumnoId}/pagos/${cicloId}`) },
+  registrarPago(body: any) { return api.post<any>(`${PREFIX}/pago`, body) },
+  updatePago(id: number, body: any) { return api.put<any>(`${PREFIX}/pago/${id}`, body) },
+  deletePago(id: number) { return api.delete(`${PREFIX}/pago/${id}`) },
+  toggleVisibilidadPago(id: number) { return api.put<any>(`${PREFIX}/pago/${id}/visibilidad`, {}) },
+  toggleSuspension(codigo: string) { return api.put<any>(`${PREFIX}/alumno/${encodeURIComponent(codigo)}/suspender`, {}) },
 }

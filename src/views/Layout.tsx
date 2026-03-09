@@ -303,6 +303,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <i className="bi bi-credit-card-2-front-fill" /> Carnets
                   </NavLink>
                 </li>
+                <li>
+                  <NavLink className="cec-nav-link" to="/admin/pagos" end={false}>
+                    <i className="bi bi-cash-stack" />
+                    <span>Pagos</span>
+                  </NavLink>
+                </li>
               </ul>
             </>
           )}
