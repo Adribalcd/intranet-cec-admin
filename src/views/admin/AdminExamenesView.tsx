@@ -436,7 +436,10 @@ export function AdminExamenesView() {
   const [loadingExamenes, setLoadingExamenes] = useState(false)
   const [selectedExamen, setSelectedExamen] = useState<Examen | null>(null)
   const [registrando, setRegistrando] = useState(false)
-  const [califFilas, setCalifFilas]   = useState([{ codigoAlumno: '', nota: '', buenas: '', malas: '' }])
+  const [califFilas, setCalifFilas]   = useState([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
+  const [alumnosDelCiclo, setAlumnosDelCiclo] = useState<Array<{ codigo: string; nombres: string; apellidos: string }>>([])
+  const [loadingAlumnos, setLoadingAlumnos]   = useState(false)
+  const [loadingNotasExamen, setLoadingNotasExamen] = useState(false)
 
   const [ranking, setRanking]           = useState<CalificacionExamenItem[]>([])
   const [rankingExamen, setRankingExamen] = useState<Examen | null>(null)
@@ -461,15 +464,65 @@ export function AdminExamenesView() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Cargar exámenes cuando cambia cicloNotasId
+  // Cargar exámenes y alumnos cuando cambia cicloNotasId
   useEffect(() => {
-    if (!cicloNotasId) { setExamenesLista([]); setSelectedExamen(null); return }
+    if (!cicloNotasId) {
+      setExamenesLista([]); setSelectedExamen(null)
+      setAlumnosDelCiclo([]); setCalifFilas([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
+      return
+    }
     setLoadingExamenes(true)
-    adminApi.getExamenesPorCiclo(cicloNotasId as number)
-      .then((res) => { setExamenesLista(Array.isArray(res.data) ? res.data : []); setSelectedExamen(null) })
-      .catch(() => setError('Error al cargar exámenes del ciclo.'))
-      .finally(() => setLoadingExamenes(false))
+    setLoadingAlumnos(true)
+    Promise.all([
+      adminApi.getExamenesPorCiclo(cicloNotasId as number),
+      adminApi.getAlumnosPorCiclo(cicloNotasId as number),
+    ])
+      .then(([exRes, alRes]) => {
+        setExamenesLista(Array.isArray(exRes.data) ? exRes.data : [])
+        const alumnos = Array.isArray(alRes.data?.alumnos) ? alRes.data.alumnos : []
+        setAlumnosDelCiclo(alumnos)
+        setSelectedExamen(null)
+        setCalifFilas(
+          alumnos.length > 0
+            ? alumnos.map((a: any) => ({ codigoAlumno: a.codigo ?? '', nombre: `${a.nombres ?? ''} ${a.apellidos ?? ''}`.trim(), nota: '', buenas: '', malas: '' }))
+            : [{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }]
+        )
+      })
+      .catch(() => setError('Error al cargar exámenes o alumnos del ciclo.'))
+      .finally(() => { setLoadingExamenes(false); setLoadingAlumnos(false) })
   }, [cicloNotasId])
+
+  // Auto-poblar filas cuando se selecciona un examen
+  useEffect(() => {
+    if (!selectedExamen) return
+    const cantNotas = parseInt((selectedExamen as any).cantidadNotas ?? '0', 10)
+    if (cantNotas > 0) {
+      setLoadingNotasExamen(true)
+      adminApi.getNotasExamen(selectedExamen.id)
+        .then((res) => {
+          const notas: any[] = res.data?.notas ?? []
+          if (notas.length > 0) {
+            setCalifFilas(notas.map((n) => ({
+              codigoAlumno: n.codigo ?? '',
+              nombre: `${n.nombres ?? ''} ${n.apellidos ?? ''}`.trim(),
+              nota: String(n.nota ?? ''),
+              buenas: '',
+              malas: '',
+            })))
+          }
+        })
+        .catch(() => {/* mantiene las filas actuales */})
+        .finally(() => setLoadingNotasExamen(false))
+    } else {
+      // Sin notas previas → pre-llenar con los alumnos del ciclo
+      setCalifFilas(
+        alumnosDelCiclo.length > 0
+          ? alumnosDelCiclo.map((a) => ({ codigoAlumno: a.codigo ?? '', nombre: `${a.nombres ?? ''} ${a.apellidos ?? ''}`.trim(), nota: '', buenas: '', malas: '' }))
+          : [{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }]
+      )
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedExamen?.id])
 
   const clearAlerts = () => { setError(''); setSuccess('') }
 
@@ -534,7 +587,7 @@ export function AdminExamenesView() {
       const sorted = [...calificaciones].sort((a, b) => (b.nota ?? 0) - (a.nota ?? 0))
       setRanking(sorted)
       setRankingExamen(selectedExamen)
-      setCalifFilas([{ codigoAlumno: '', nota: '', buenas: '', malas: '' }])
+      setCalifFilas([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
       if (cicloNotasId) {
         adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r) => setExamenesLista(Array.isArray(r.data) ? r.data : []))
       }
@@ -545,9 +598,9 @@ export function AdminExamenesView() {
     }
   }
 
-  const addFila    = () => setCalifFilas([...califFilas, { codigoAlumno: '', nota: '', buenas: '', malas: '' }])
+  const addFila    = () => setCalifFilas([...califFilas, { codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
   const removeFila = (i: number) => setCalifFilas(califFilas.filter((_, idx) => idx !== i))
-  const updateFila = (i: number, field: 'codigoAlumno' | 'nota' | 'buenas' | 'malas', val: string) => {
+  const updateFila = (i: number, field: 'codigoAlumno' | 'nombre' | 'nota' | 'buenas' | 'malas', val: string) => {
     const next = [...califFilas]; next[i] = { ...next[i], [field]: val }
     setCalifFilas(next)
   }
@@ -807,7 +860,20 @@ export function AdminExamenesView() {
 
             {/* Selector de ciclo */}
             <div className="exam-field" style={{ marginBottom: 16 }}>
-              <label>Ciclo para buscar examen</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ margin: 0 }}>Ciclo para buscar examen</label>
+                {loadingAlumnos && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--teal-mid)' }}>
+                    <div className="exam-spinner-sm" style={{ borderColor: 'var(--teal-light)', borderTopColor: 'var(--teal-mid)', width: 13, height: 13 }} />
+                    Cargando alumnos...
+                  </span>
+                )}
+                {!loadingAlumnos && alumnosDelCiclo.length > 0 && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    <i className="bi bi-people-fill me-1" style={{ color: 'var(--teal-mid)' }} />{alumnosDelCiclo.length} matriculados
+                  </span>
+                )}
+              </div>
               <div className="exam-select-wrap">
                 <select value={cicloNotasId} onChange={(e) => setCicloNotasId(e.target.value ? parseInt(e.target.value) : '')}>
                   <option value="">-- Seleccionar ciclo --</option>
@@ -883,11 +949,25 @@ export function AdminExamenesView() {
             {/* Filas de notas manuales */}
             {selectedExamen && (
               <form onSubmit={handleRegistrarCalificaciones}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                  {usaBuenasMalas
-                    ? `Código / Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
-                    : 'Código alumno / Nota directa'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0 }}>
+                    {usaBuenasMalas
+                      ? `Código / Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
+                      : 'Alumnos / Nota directa'}
+                  </label>
+                  {loadingNotasExamen && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--teal-mid)' }}>
+                      <div className="exam-spinner-sm" style={{ borderColor: 'var(--teal-light)', borderTopColor: 'var(--teal-mid)', width: 13, height: 13 }} />
+                      Cargando notas...
+                    </span>
+                  )}
+                  {!loadingNotasExamen && alumnosDelCiclo.length > 0 && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      <i className="bi bi-people-fill me-1" style={{ color: 'var(--teal-mid)' }} />
+                      {califFilas.length} alumno(s)
+                    </span>
+                  )}
+                </div>
 
                 {califFilas.length === 0 ? (
                   <div className="calif-empty">
@@ -899,7 +979,10 @@ export function AdminExamenesView() {
                     {califFilas.map((f, i) => (
                       <div key={i} className="calif-row">
                         <div>
-                          <div className="calif-row-num">ALUMNO #{i + 1}</div>
+                          {f.nombre
+                            ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0 }}>{f.nombre}</div>
+                            : <div className="calif-row-num">ALUMNO #{i + 1}</div>
+                          }
                           <input type="text" placeholder="Código"
                             value={f.codigoAlumno}
                             onChange={(e) => updateFila(i, 'codigoAlumno', e.target.value)} />
