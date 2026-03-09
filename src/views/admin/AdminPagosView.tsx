@@ -72,6 +72,10 @@ export function AdminPagosView() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
 
+  // Específicos para Tabs nuevos
+  const [configPagos, setConfigPagos] = useState<any>(null)
+  const [pagosOnline, setPagosOnline] = useState<any[]>([])
+
   useEffect(() => {
     adminApi.getCiclos().then(r => {
       setCiclos(r.data)
@@ -95,14 +99,25 @@ export function AdminPagosView() {
     adminApi.getResumenPagosCiclo(cicloId).then(r => { setResumen(r.data); setLoading(false) }).catch(() => setLoading(false))
   }, [cicloId])
 
+  const loadConfigPagos = useCallback(() => {
+    if (!cicloId) return
+    adminApi.getConfigPagos(cicloId).then(r => setConfigPagos(r.data))
+  }, [cicloId])
+
+  const loadPagosOnline = useCallback(() => {
+    adminApi.getPagosOnlinePendientes().then(r => setPagosOnline(r.data))
+  }, [])
+
   useEffect(() => {
     if (!cicloId) return
     setSelectedAlumno(null)
     setAlumnoConceptos([])
     if (tab === 0) loadConceptos()
     if (tab === 1) loadAlumnos()
-    if (tab === 2) loadResumen()
-  }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen])
+    if (tab === 3) loadResumen()
+    if (tab === 4) loadConfigPagos()
+    if (tab === 2) loadPagosOnline()
+  }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen, loadConfigPagos, loadPagosOnline])
 
   const loadPagosAlumno = useCallback((alumno: any) => {
     if (!cicloId || !alumno) return
@@ -136,6 +151,32 @@ export function AdminPagosView() {
   const deleteConcepto = async (id: number) => {
     if (!confirm('¿Eliminar este concepto y todos sus pagos?')) return
     await adminApi.deleteConceptoPago(id); loadConceptos(); flash('Concepto eliminado')
+  }
+
+  const togglePagoOnlineConcepto = async (id: number, val: boolean) => {
+    await adminApi.updateConceptoPago(id, { permite_pago_online: val })
+    loadConceptos()
+    flash('Configuración de pago online actualizada')
+  }
+
+  // ── Config Ciclo ──
+  const saveConfig = async () => {
+    if (!cicloId || !configPagos) return
+    try {
+      await adminApi.upsertConfigPagos(cicloId, configPagos)
+      flash('Configuración guardada')
+    } catch { flash('Error al guardar config') }
+  }
+
+  // ── Pagos Online ──
+  const handleAccionPago = async (pago: any, accion: 'confirmar' | 'rechazar') => {
+    const obs = prompt(`Observaciones para el alumno (${accion}):`, '')
+    if (obs === null) return
+    try {
+      await adminApi.confirmarPago(pago.id, { accion, observaciones: obs })
+      loadPagosOnline()
+      flash(`Pago ${accion === 'confirmar' ? 'confirmado' : 'rechazado'}`)
+    } catch { flash('Error al procesar') }
   }
 
   // ── Pago CRUD ──
@@ -216,7 +257,7 @@ export function AdminPagosView() {
 
       {/* Tabs */}
       <div style={s.tabBar}>
-        {['Conceptos de pago', 'Pagos por alumno', 'Resumen'].map((t, i) => (
+        {['Conceptos de pago', 'Pagos por alumno', 'Pagos Online', 'Resumen', 'Configuración'].map((t, i) => (
           <button key={i} style={tab === i ? s.tabActive : s.tab} onClick={() => setTab(i)}>{t}</button>
         ))}
       </div>
@@ -260,6 +301,9 @@ export function AdminPagosView() {
                     <td style={s.td}>{c.orden}</td>
                     <td style={s.td}>
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={{ ...s.btnSecondary, background: c.permite_pago_online ? '#e8f5f6' : '#fff0f0', color: c.permite_pago_online ? '#0a9396' : '#c0392b' }} title="Permitir pago online" onClick={() => togglePagoOnlineConcepto(c.id, !c.permite_pago_online)}>
+                          <i className={`bi bi-globe${c.permite_pago_online ? '' : '-slash'}`} /> {c.permite_pago_online ? 'Sí' : 'No'}
+                        </button>
                         <button style={s.btnSecondary} onClick={() => openEditConcepto(c)}><i className="bi bi-pencil" /></button>
                         <button style={s.btnDanger} onClick={() => deleteConcepto(c.id)}><i className="bi bi-trash" /></button>
                       </div>
@@ -363,8 +407,64 @@ export function AdminPagosView() {
         </div>
       )}
 
-      {/* ── TAB 2: Resumen ── */}
+      {/* ── TAB 2: Pagos Online ── */}
       {tab === 2 && (
+        <div style={s.card}>
+          <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 15 }}>Pagos Online Pendientes de Revisión</span>
+            <button style={s.btnSecondary} onClick={loadPagosOnline}><i className="bi bi-arrow-clockwise" /> Actualizar</button>
+          </div>
+          {pagosOnline.length === 0 ? (
+            <p style={{ color: '#6c8a91', fontSize: 13 }}>No hay pagos pendientes de revisión.</p>
+          ) : (
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Fecha</th>
+                  <th style={s.th}>Alumno</th>
+                  <th style={s.th}>Concepto</th>
+                  <th style={s.th}>Monto</th>
+                  <th style={s.th}>Método</th>
+                  <th style={s.th}>N° Op. / Hora</th>
+                  <th style={s.th}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagosOnline.map(p => (
+                  <tr key={p.id}>
+                    <td style={s.td}>{p.fecha_pago}</td>
+                    <td style={s.td}>
+                      <strong>{p.Alumno?.nombres} {p.Alumno?.apellidos}</strong><br />
+                      <span style={{ fontSize: 11, color: '#6c8a91' }}>{p.Alumno?.codigo}</span>
+                    </td>
+                    <td style={s.td}>
+                      <strong>{p.ConceptoPago?.descripcion}</strong><br />
+                      <span style={{ fontSize: 11, color: '#6c8a91' }}>{TIPO_LABELS[p.ConceptoPago?.tipo]}</span>
+                    </td>
+                    <td style={s.td}><strong>S/ {Number(p.monto_pagado).toFixed(2)}</strong></td>
+                    <td style={s.td}>
+                      <span style={{ ...s.badge, background: '#e8f0ff', color: '#5c40b0' }}>{p.metodo_pago}</span>
+                    </td>
+                    <td style={s.td}>
+                      {p.numero_operacion || '—'}
+                      {p.observaciones && <div style={{ fontSize: 11, color: '#6c8a91' }}>{p.observaciones}</div>}
+                    </td>
+                    <td style={s.td}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={{ ...s.btnPrimary, background: '#27ae60' }} onClick={() => handleAccionPago(p, 'confirmar')}><i className="bi bi-check-lg" /> Confirmar</button>
+                        <button style={s.btnDanger} onClick={() => handleAccionPago(p, 'rechazar')}><i className="bi bi-x-lg" /> Rechazar</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB 3: Resumen ── */}
+      {tab === 3 && (
         <div style={{ ...s.card, overflowX: 'auto' }}>
           <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 15 }}>Resumen de pagos por ciclo</span>
@@ -413,6 +513,74 @@ export function AdminPagosView() {
             </table>
           )}
           {!loading && !resumen && <p style={{ color: '#6c8a91', fontSize: 13 }}>Selecciona un ciclo y haz clic en Actualizar.</p>}
+        </div>
+      )}
+
+      {/* ── TAB 4: Configuración ── */}
+      {tab === 4 && (
+        <div style={s.card}>
+          <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 15 }}>Configuración de Pagos por Ciclo</span>
+            <button style={s.btnPrimary} onClick={saveConfig}><i className="bi bi-save" /> Guardar configuración</button>
+          </div>
+          {!configPagos ? (
+            <p style={{ color: '#6c8a91' }}>Cargando configuración...</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+              <div style={{ padding: '16px', border: '1.5px solid #e0eef0', borderRadius: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0d4f5c', marginBottom: 12 }}>Visibilidad y Métodos Online</h3>
+                <div style={s.formGroup}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={configPagos.pagos_visible} onChange={e => setConfigPagos((f: any) => ({ ...f, pagos_visible: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
+                    Pagos visibles para los alumnos del ciclo
+                  </label>
+                </div>
+                <div style={s.formGroup}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={configPagos.permite_transferencia} onChange={e => setConfigPagos((f: any) => ({ ...f, permite_transferencia: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
+                    Permitir pago por transferencia bancaria
+                  </label>
+                </div>
+                <div style={s.formGroup}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={configPagos.permite_yape_plin} onChange={e => setConfigPagos((f: any) => ({ ...f, permite_yape_plin: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
+                    Permitir pago por Yape / Plin
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ padding: '16px', border: '1.5px solid #e0eef0', borderRadius: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0d4f5c', marginBottom: 12 }}>Cuentas Bancarias</h3>
+                <label style={s.label}>BCP (Cuenta / CCI)</label>
+                <div style={{ ...s.row, marginBottom: 8 }}>
+                  <input style={{ ...s.input, flex: 1 }} value={configPagos.bcp_cuenta || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, bcp_cuenta: e.target.value }))} placeholder="N° Cuenta" />
+                  <input style={{ ...s.input, flex: 1 }} value={configPagos.bcp_cci || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, bcp_cci: e.target.value }))} placeholder="CCI" />
+                </div>
+                <label style={s.label}>BBVA (Cuenta / CCI)</label>
+                <div style={{ ...s.row, marginBottom: 8 }}>
+                  <input style={{ ...s.input, flex: 1 }} value={configPagos.bbva_cuenta || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, bbva_cuenta: e.target.value }))} placeholder="N° Cuenta" />
+                  <input style={{ ...s.input, flex: 1 }} value={configPagos.bbva_cci || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, bbva_cci: e.target.value }))} placeholder="CCI" />
+                </div>
+                <label style={s.label}>Interbank (Cuenta / CCI)</label>
+                <div style={{ ...s.row }}>
+                  <input style={{ ...s.input, flex: 1 }} value={configPagos.interbank_cuenta || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, interbank_cuenta: e.target.value }))} placeholder="N° Cuenta" />
+                  <input style={{ ...s.input, flex: 1 }} value={configPagos.interbank_cci || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, interbank_cci: e.target.value }))} placeholder="CCI" />
+                </div>
+              </div>
+
+              <div style={{ padding: '16px', border: '1.5px solid #e0eef0', borderRadius: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0d4f5c', marginBottom: 12 }}>Yape / Plin</h3>
+                <label style={s.label}>Número Yape</label>
+                <input style={{ ...s.input, marginBottom: 8 }} value={configPagos.yape_numero || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, yape_numero: e.target.value }))} />
+                <label style={s.label}>URL QR Yape</label>
+                <input style={{ ...s.input, marginBottom: 8 }} value={configPagos.yape_qr_url || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, yape_qr_url: e.target.value }))} placeholder="https://..." />
+                <label style={s.label}>Número Plin</label>
+                <input style={{ ...s.input, marginBottom: 8 }} value={configPagos.plin_numero || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, plin_numero: e.target.value }))} />
+                <label style={s.label}>URL QR Plin</label>
+                <input style={{ ...s.input }} value={configPagos.plin_qr_url || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, plin_qr_url: e.target.value }))} placeholder="https://..." />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
