@@ -864,13 +864,13 @@ export function AdminExamenesView() {
               <div className="exam-field-row">
                 <div className="exam-field">
                   <label>Pts. respuesta correcta</label>
-                  <input type="number" step="0.5" min={0} placeholder="4"
+                  <input type="number" step="0.001" min={0} placeholder="4"
                     value={examenForm.puntajeBuena}
                     onChange={(e) => setExamenForm({ ...examenForm, puntajeBuena: e.target.value })} />
                 </div>
                 <div className="exam-field">
                   <label>Pts. descontados (incorrecta)</label>
-                  <input type="number" step="0.5" min={0} placeholder="1"
+                  <input type="number" step="0.001" min={0} placeholder="1.125"
                     value={examenForm.puntajeMala}
                     onChange={(e) => setExamenForm({ ...examenForm, puntajeMala: e.target.value })} />
                 </div>
