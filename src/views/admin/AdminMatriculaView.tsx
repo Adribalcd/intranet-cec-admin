@@ -59,12 +59,12 @@ export function AdminMatriculaView() {
   const [msg, setMsg] = useState({ type: '', text: '' })
 
   // Estados de formularios
-  const [manual, setManual] = useState({ codigoAlumno: '', cicloId: '' })
+  const [manual, setManual] = useState({ codigoAlumno: '', cicloId: '', esEscolar: false })
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [excelCicloId, setExcelCicloId] = useState('')
   const [nuevo, setNuevo] = useState({
     codigo: '', nombres: '', apellidos: '', email: '',
-    dni: '', fechaNacimiento: '', celular: '', cicloId: ''
+    dni: '', fechaNacimiento: '', celular: '', cicloId: '', esEscolar: false
   })
 
   const setNA = (patch: Partial<typeof nuevo>) => setNuevo(prev => ({ ...prev, ...patch }))
@@ -82,9 +82,9 @@ export function AdminMatriculaView() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await adminApi.matriculaManual({ codigoAlumno: manual.codigoAlumno, cicloId: Number(manual.cicloId) });
-      setMsg({ type: 'success', text: 'Matrícula individual exitosa.' });
-      setManual({ codigoAlumno: '', cicloId: '' });
+      await adminApi.matriculaManual({ codigoAlumno: manual.codigoAlumno, cicloId: Number(manual.cicloId), esEscolar: manual.esEscolar });
+      setMsg({ type: 'success', text: `Matrícula individual exitosa.${manual.esEscolar ? ' Se generaron 10 cuotas de escolaridad (S/70 c/u).' : ''}` });
+      setManual({ codigoAlumno: '', cicloId: '', esEscolar: false });
     } catch (err: any) {
       setMsg({ type: 'error', text: err.response?.data?.error || 'Error en matrícula manual.' });
     } finally { setIsSubmitting(false); }
@@ -131,10 +131,11 @@ export function AdminMatriculaView() {
         dni: nuevo.dni, fechaNacimiento: nuevo.fechaNacimiento,
       });
       // 2. Matrícula
-      await adminApi.matriculaManual({ codigoAlumno: nuevo.codigo, cicloId: Number(nuevo.cicloId) });
+      await adminApi.matriculaManual({ codigoAlumno: nuevo.codigo, cicloId: Number(nuevo.cicloId), esEscolar: nuevo.esEscolar });
 
-      setMsg({ type: 'success', text: `Alumno registrado. Accesos enviados a ${nuevo.email}. Clave: ${passwordGenerada}` });
-      setNuevo({ codigo: '', nombres: '', apellidos: '', email: '', dni: '', fechaNacimiento: '', celular: '', cicloId: '' });
+      const msgEsc = nuevo.esEscolar ? ' · Escolaridad: 10 cuotas de S/70 generadas.' : '';
+      setMsg({ type: 'success', text: `Alumno registrado. Accesos enviados a ${nuevo.email}. Clave: ${passwordGenerada}${msgEsc}` });
+      setNuevo({ codigo: '', nombres: '', apellidos: '', email: '', dni: '', fechaNacimiento: '', celular: '', cicloId: '', esEscolar: false });
     } catch (err: any) {
       setMsg({ type: 'error', text: err.response?.data?.error || 'Error al registrar nuevo alumno.' });
     } finally { setIsSubmitting(false); }
@@ -166,20 +167,28 @@ export function AdminMatriculaView() {
           <i className="bi bi-cursor-fill" /> <p className="mat-card-title">Matrícula Individual (Alumno Existente)</p>
         </div>
         <div className="mat-card-body">
-          <form onSubmit={handleManual} className="mat-form-row cols-3">
-            <div className="mat-field">
-              <label>Código Alumno</label>
-              <input value={manual.codigoAlumno} onChange={e => setManual({...manual, codigoAlumno: e.target.value})} placeholder="Ej: A100" required />
+          <form onSubmit={handleManual}>
+            <div className="mat-form-row cols-3">
+              <div className="mat-field">
+                <label>Código Alumno</label>
+                <input value={manual.codigoAlumno} onChange={e => setManual({...manual, codigoAlumno: e.target.value})} placeholder="Ej: A100" required />
+              </div>
+              <div className="mat-field">
+                <label>Ciclo Académico</label>
+                <select value={manual.cicloId} onChange={e => setManual({...manual, cicloId: e.target.value})} required>
+                  <option value="">Seleccione...</option>
+                  {ciclos.map(c => <option key={c.id} value={c.id}>{c.nombre || c.nombres}</option>)}
+                </select>
+              </div>
+              <div className="mat-field" style={{alignSelf: 'end'}}>
+                <button type="submit" className="btn-primary-cec" disabled={isSubmitting}>Matricular</button>
+              </div>
             </div>
-            <div className="mat-field">
-              <label>Ciclo Académico</label>
-              <select value={manual.cicloId} onChange={e => setManual({...manual, cicloId: e.target.value})} required>
-                <option value="">Seleccione...</option>
-                {ciclos.map(c => <option key={c.id} value={c.id}>{c.nombre || c.nombres}</option>)}
-              </select>
-            </div>
-            <div className="mat-field" style={{alignSelf: 'end'}}>
-              <button type="submit" className="btn-primary-cec" disabled={isSubmitting}>Matricular</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 13 }}>
+              <input type="checkbox" id="chk-escolar-manual" checked={manual.esEscolar} onChange={e => setManual({...manual, esEscolar: e.target.checked})} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+              <label htmlFor="chk-escolar-manual" style={{ cursor: 'pointer', color: '#0d4f5c', fontWeight: 600 }}>
+                Modalidad Escolaridad <span style={{ fontWeight: 400, color: '#64748b' }}>(genera 10 cuotas × S/70)</span>
+              </label>
             </div>
           </form>
         </div>
@@ -264,6 +273,12 @@ export function AdminMatriculaView() {
                   {ciclos.map(c => <option key={c.id} value={c.id}>{c.nombre || c.nombres}</option>)}
                 </select>
               </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13 }}>
+              <input type="checkbox" id="chk-escolar-nuevo" checked={nuevo.esEscolar} onChange={e => setNA({esEscolar: e.target.checked})} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+              <label htmlFor="chk-escolar-nuevo" style={{ cursor: 'pointer', color: '#0d4f5c', fontWeight: 600 }}>
+                Modalidad Escolaridad <span style={{ fontWeight: 400, color: '#64748b' }}>(genera 10 cuotas × S/70 al matricular)</span>
+              </label>
             </div>
             <button type="submit" className="btn-primary-cec" style={{width: '100%', justifyContent: 'center'}} disabled={isSubmitting}>
               {isSubmitting ? <div className="spinner" /> : 'Registrar Estudiante y Enviar Accesos'}
