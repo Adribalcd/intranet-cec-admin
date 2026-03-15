@@ -15,6 +15,7 @@ import { AdminHorarioView } from './views/admin/AdminHorarioView'
 import { AdminMaterialesView } from './views/admin/AdminMaterialesView'
 import { AdminCarnetsView } from './views/admin/AdminCarnetsView'
 import { AdminPagosView } from './views/admin/AdminPagosView'
+import { AdminUsuariosView } from './views/admin/AdminUsuariosView'
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
@@ -148,6 +149,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <AdminPagosView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/usuarios"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <AdminUsuariosView />
             </Layout>
           </ProtectedRoute>
         }
