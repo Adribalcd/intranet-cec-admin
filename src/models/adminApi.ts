@@ -138,6 +138,16 @@ export const adminApi = {
     form.append('archivo', file)
     return api.post(`${PREFIX}/examen/${examenId}/notas-excel`, form)
   },
+  subirExcelSimulacro(examenId: number, file: File) {
+    const form = new FormData()
+    form.append('archivo', file)
+    return api.post<{ ok: boolean; area: string; resumen: { procesados: number; noEncontrados: string[]; errores: Array<{ dni: string; error: string }> } }>(
+      `${PREFIX}/examen/${examenId}/subir-excel-simulacro`, form
+    )
+  },
+  getNotasSimulacro(examenId: number) {
+    return api.get<any[]>(`${PREFIX}/examen/${examenId}/notas-simulacro`)
+  },
 
   // --- Horarios de cursos
   getHorarios(cicloId?: number) {

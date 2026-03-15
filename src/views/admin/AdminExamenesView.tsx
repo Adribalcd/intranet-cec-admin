@@ -274,6 +274,29 @@ const styles = `
   .excel-panel-desc  { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
   .excel-panel-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+  /* Simulacro OMR panel */
+  .simulacro-panel {
+    background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 16px; margin-top: 12px;
+  }
+  .simulacro-panel-title { font-size: 12px; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+  .simulacro-panel-desc  { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+  .btn-simulacro-up {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--green-dark); color: white; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 12px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-simulacro-up:hover:not(:disabled) { background: var(--green-mid); }
+  .btn-simulacro-up:disabled { opacity: 0.55; cursor: not-allowed; }
+  .simulacro-resumen {
+    margin-top: 10px; background: white; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px;
+  }
+  .simulacro-resumen-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+  .simulacro-tag { display: inline-block; padding: 1px 8px; border-radius: 5px; font-weight: 700; font-size: 11px; }
+  .simulacro-tag-area { background: #dcfce7; color: #166534; }
+  .simulacro-tag-warn { background: #fef9c3; color: #854d0e; }
+  .simulacro-tag-err  { background: #fee2e2; color: #b91c1c; }
+
   /* Nota badge */
   .nota-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; font-family: monospace; }
   .nota-alta  { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
@@ -483,6 +506,11 @@ export function AdminExamenesView() {
   const [rankingExamen, setRankingExamen] = useState<Examen | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileSimulacroRef = useRef<HTMLInputElement>(null)
+  const [subiendoSimulacro, setSubiendoSimulacro] = useState(false)
+  const [simulacroResumen, setSimulacroResumen] = useState<{
+    area: string; procesados: number; noEncontrados: string[]; errores: Array<{ dni: string; error: string }>
+  } | null>(null)
 
   // ── Consulta de exámenes ──
   const [consultaCicloId, setConsultaCicloId] = useState<number | ''>('')
@@ -668,6 +696,28 @@ export function AdminExamenesView() {
         }
       })
       .catch(() => setError('Error al subir el Excel.'))
+  }
+
+  const subirSimulacroExcel = (file: File) => {
+    if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
+    clearAlerts()
+    setSimulacroResumen(null)
+    setSubiendoSimulacro(true)
+    adminApi.subirExcelSimulacro(selectedExamen.id, file)
+      .then((r) => {
+        const { area, resumen } = r.data
+        setSimulacroResumen({ area, ...resumen })
+        setSuccess(
+          `Excel de Simulacro (Área ${area}) procesado. ` +
+          `${resumen.procesados} alumno(s) registrados.` +
+          (resumen.noEncontrados.length ? ` ${resumen.noEncontrados.length} DNI(s) no encontrados.` : '')
+        )
+        if (cicloNotasId) {
+          adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r2) => setExamenesLista(Array.isArray(r2.data) ? r2.data : []))
+        }
+      })
+      .catch((e) => setError('Error al procesar el Excel de simulacro: ' + (e?.response?.data?.error ?? e?.message ?? 'Error desconocido')))
+      .finally(() => setSubiendoSimulacro(false))
   }
 
   // ── Handlers de consulta ──
@@ -1121,6 +1171,53 @@ export function AdminExamenesView() {
                 <input ref={fileInputRef} type="file" accept=".xlsx" style={{ display: 'none' }}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) subirNotasExcel(f) }} />
               </div>
+            </div>
+
+            {/* Simulacro OMR por área */}
+            <div className="simulacro-panel">
+              <p className="simulacro-panel-title"><i className="bi bi-grid-3x3-gap-fill me-1" />Simulacro OMR por Área (A–E)</p>
+              <p className="simulacro-panel-desc">
+                {selectedExamen
+                  ? <>Sube el Excel del lector OMR para <strong>{selectedExamen.tipo_examen ?? (selectedExamen as any).tipoExamen}</strong> (Sem. {selectedExamen.semana}). El sistema detectará el área automáticamente y guardará los puntajes por curso.</>
+                  : 'Selecciona un examen para subir el archivo Excel de simulacro OMR.'}
+              </p>
+              <div className="excel-panel-actions">
+                <button
+                  type="button"
+                  className="btn-simulacro-up"
+                  onClick={() => fileSimulacroRef.current?.click()}
+                  disabled={!selectedExamen || subiendoSimulacro}
+                >
+                  {subiendoSimulacro
+                    ? <><div className="exam-spinner-sm" />Procesando...</>
+                    : <><i className="bi bi-file-earmark-spreadsheet" />Subir Excel Simulacro</>}
+                </button>
+                <input
+                  ref={fileSimulacroRef} type="file" accept=".xlsx" style={{ display: 'none' }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) subirSimulacroExcel(f); e.target.value = '' }}
+                />
+              </div>
+
+              {simulacroResumen && (
+                <div className="simulacro-resumen">
+                  <div className="simulacro-resumen-row">
+                    <span className="simulacro-tag simulacro-tag-area">Área {simulacroResumen.area}</span>
+                    <span style={{ color: '#166534', fontWeight: 600 }}>{simulacroResumen.procesados} alumno(s) registrados</span>
+                  </div>
+                  {simulacroResumen.noEncontrados.length > 0 && (
+                    <div className="simulacro-resumen-row">
+                      <span className="simulacro-tag simulacro-tag-warn">No encontrados</span>
+                      <span style={{ color: '#854d0e' }}>{simulacroResumen.noEncontrados.join(', ')}</span>
+                    </div>
+                  )}
+                  {simulacroResumen.errores.length > 0 && (
+                    <div className="simulacro-resumen-row">
+                      <span className="simulacro-tag simulacro-tag-err">Errores</span>
+                      <span style={{ color: '#b91c1c' }}>{simulacroResumen.errores.map(e => e.dni).join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>
