@@ -118,6 +118,7 @@ export interface Curso {
 export interface MatriculaManualBody {
   codigoAlumno: string
   cicloId: number
+  esEscolar?: boolean
 }
 
 export interface MatriculaMasivaItem {

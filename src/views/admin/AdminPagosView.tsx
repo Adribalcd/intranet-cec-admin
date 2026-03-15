@@ -6,7 +6,7 @@ const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 
 const TIPO_LABELS: Record<string, string> = {
   mensualidad: 'Mensualidad', matricula: 'Matrícula',
-  materiales: 'Materiales', otro: 'Otro',
+  materiales: 'Materiales', escolaridad: 'Escolaridad', otro: 'Otro',
 }
 
 const s: Record<string, React.CSSProperties> = {
@@ -43,7 +43,7 @@ const s: Record<string, React.CSSProperties> = {
 }
 
 const emptyConcepto = { tipo: 'mensualidad', descripcion: '', mes: '', anio: '', monto_opcion_1: '', etiqueta_opcion_1: 'Tarifa regular', monto_opcion_2: '', etiqueta_opcion_2: 'Tarifa especial', fecha_vencimiento: '', orden: 0 }
-const emptyPago = { alumno_id: '', concepto_id: '', monto_pagado: '', opcion_pago: 'opcion_1', metodo_pago: 'Yape', fecha_pago: new Date().toISOString().slice(0, 10), visible_alumno: false, observaciones: '', numero_operacion: '' }
+const emptyPago = { alumno_id: '', concepto_id: '', monto_pagado: '', opcion_pago: 'opcion_1', metodo_pago: 'Yape', fecha_pago: new Date().toISOString().slice(0, 10), visible_alumno: false, observaciones: '', numero_operacion: '', codigo_recibo: '' }
 
 export function AdminPagosView() {
   const [ciclos, setCiclos] = useState<any[]>([])
@@ -191,7 +191,7 @@ export function AdminPagosView() {
   const openEditPago = (concepto: any, pago: any) => {
     setPagoConcepto(concepto)
     setEditPago(pago)
-    setPagoForm({ alumno_id: pago.alumno_id, concepto_id: pago.concepto_id, monto_pagado: pago.monto_pagado, opcion_pago: pago.opcion_pago, metodo_pago: pago.metodo_pago, fecha_pago: pago.fecha_pago, visible_alumno: pago.visible_alumno, observaciones: pago.observaciones ?? '', numero_operacion: pago.numero_operacion ?? '' })
+    setPagoForm({ alumno_id: pago.alumno_id, concepto_id: pago.concepto_id, monto_pagado: pago.monto_pagado, opcion_pago: pago.opcion_pago, metodo_pago: pago.metodo_pago, fecha_pago: pago.fecha_pago, visible_alumno: pago.visible_alumno, observaciones: pago.observaciones ?? '', numero_operacion: pago.numero_operacion ?? '', codigo_recibo: pago.codigo_recibo ?? '' })
     setShowPagoModal(true)
   }
 
@@ -577,7 +577,9 @@ export function AdminPagosView() {
                 <label style={s.label}>Número Plin</label>
                 <input style={{ ...s.input, marginBottom: 8 }} value={configPagos.plin_numero || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, plin_numero: e.target.value }))} />
                 <label style={s.label}>URL QR Plin</label>
-                <input style={{ ...s.input }} value={configPagos.plin_qr_url || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, plin_qr_url: e.target.value }))} placeholder="https://..." />
+                <input style={{ ...s.input, marginBottom: 8 }} value={configPagos.plin_qr_url || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, plin_qr_url: e.target.value }))} placeholder="https://..." />
+                <label style={s.label}>Número WhatsApp contacto (sin +, ej: 51924513040)</label>
+                <input style={{ ...s.input }} value={configPagos.whatsapp_numero || ''} onChange={e => setConfigPagos((f: any) => ({ ...f, whatsapp_numero: e.target.value }))} placeholder="Ej: 51924513040" />
               </div>
             </div>
           )}
@@ -595,6 +597,7 @@ export function AdminPagosView() {
                 <option value="mensualidad">Mensualidad</option>
                 <option value="matricula">Matrícula</option>
                 <option value="materiales">Materiales</option>
+                <option value="escolaridad">Escolaridad</option>
                 <option value="otro">Otro</option>
               </select>
             </div>
@@ -716,6 +719,10 @@ export function AdminPagosView() {
             <div style={s.formGroup}>
               <div style={s.label}>N° operación (opcional)</div>
               <input style={s.input} value={pagoForm.numero_operacion} onChange={e => setPagoForm((f: any) => ({ ...f, numero_operacion: e.target.value }))} placeholder="Ej: 123456789" />
+            </div>
+            <div style={s.formGroup}>
+              <div style={s.label}>Código de recibo (opcional)</div>
+              <input style={s.input} value={pagoForm.codigo_recibo} onChange={e => setPagoForm((f: any) => ({ ...f, codigo_recibo: e.target.value }))} placeholder="Ej: REC-2026-001" />
             </div>
             <div style={s.formGroup}>
               <div style={s.label}>Observaciones</div>
