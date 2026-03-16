@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../models/adminApi'
-import type { Ciclo, Examen, CalificacionExamenItem } from '../../models/types'
+import type { Ciclo, Examen, CalificacionExamenItem, PlantillaExamen, ConfigCursoExamen } from '../../models/types'
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -486,10 +486,12 @@ export function AdminExamenesView() {
   // Ciclo seleccionado para crear examen
   const [cicloCrearId, setCicloCrearId] = useState<number | ''>('')
   const [creando, setCreando]         = useState(false)
-  const [examenForm, setExamenForm]   = useState({
-    semana: '', tipoExamen: '', subtipoExamen: '', fecha: '',
-    cantidadPreguntas: '', puntajeBuena: '4', puntajeMala: '1',
-  })
+  const [examenForm, setExamenForm]   = useState({ semana: '', fecha: '' })
+  // Plantilla y config de cursos para el nuevo examen
+  const [plantillas, setPlantillas]         = useState<PlantillaExamen[]>([])
+  const [plantillaId, setPlantillaId]       = useState<number | ''>('')
+  const [plantillaActual, setPlantillaActual] = useState<PlantillaExamen | null>(null)
+  const [configCursos, setConfigCursos]     = useState<ConfigCursoExamen[]>([])
 
   // Ciclo + examen seleccionado para registrar notas
   const [cicloNotasId, setCicloNotasId] = useState<number | ''>('')
@@ -524,9 +526,15 @@ export function AdminExamenesView() {
   const [dlRankingId, setDlRankingId] = useState<number | null>(null)
 
   useEffect(() => {
-    adminApi.getCiclos()
-      .then((res) => setCiclos(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setError('No se pudieron cargar los ciclos.'))
+    Promise.all([
+      adminApi.getCiclos(),
+      adminApi.getPlantillasExamen(),
+    ])
+      .then(([ciclosRes, plantillasRes]) => {
+        setCiclos(Array.isArray(ciclosRes.data) ? ciclosRes.data : [])
+        setPlantillas(Array.isArray(plantillasRes.data) ? plantillasRes.data : [])
+      })
+      .catch(() => setError('No se pudieron cargar los datos iniciales.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -592,29 +600,66 @@ export function AdminExamenesView() {
 
   const clearAlerts = () => { setError(''); setSuccess('') }
 
+  // Seleccionar plantilla → cargar cursos en configCursos
+  const handleSelectPlantilla = (id: number | '') => {
+    setPlantillaId(id)
+    if (!id) { setPlantillaActual(null); setConfigCursos([]); return }
+    const p = plantillas.find(x => x.id === id) ?? null
+    setPlantillaActual(p)
+    if (!p) { setConfigCursos([]); return }
+
+    // Aplanar secciones/cursos en una lista de ConfigCursoExamen
+    const lista: ConfigCursoExamen[] = []
+    if (p.tiene_secciones) {
+      for (const sec of p.Secciones ?? []) {
+        for (const cur of sec.Cursos ?? []) {
+          lista.push({
+            nombre:             cur.nombre,
+            seccionNombre:      sec.nombre,
+            cantidadPreguntas:  cur.cantidadPreguntas ?? null,
+            puntajeBuena:       Number(cur.puntajeBuena),
+            puntajeMala:        Number(cur.puntajeMala),
+            orden:              cur.orden,
+          })
+        }
+      }
+    } else {
+      for (const cur of p.Cursos ?? []) {
+        lista.push({
+          nombre:             cur.nombre,
+          seccionNombre:      null,
+          cantidadPreguntas:  cur.cantidadPreguntas ?? null,
+          puntajeBuena:       Number(cur.puntajeBuena),
+          puntajeMala:        Number(cur.puntajeMala),
+          orden:              cur.orden,
+        })
+      }
+    }
+    setConfigCursos(lista)
+  }
+
+  const updateConfigCurso = (i: number, field: keyof ConfigCursoExamen, val: string | number | null) => {
+    setConfigCursos(prev => { const n = [...prev]; n[i] = { ...n[i], [field]: val }; return n })
+  }
+
   // Crear examen
   const handleCrearExamen = async (e: React.FormEvent) => {
     e.preventDefault(); clearAlerts()
-    if (!cicloCrearId || !examenForm.semana || !examenForm.tipoExamen || !examenForm.fecha) {
-      setError('Completa todos los campos obligatorios.'); return
-    }
-    if (!examenForm.subtipoExamen) {
-      setError('Selecciona el subtipo de examen.'); return
+    if (!cicloCrearId || !examenForm.semana || !examenForm.fecha || !plantillaId) {
+      setError('Completa todos los campos obligatorios (ciclo, semana, fecha y plantilla).'); return
     }
     setCreando(true)
     try {
       await adminApi.crearExamen({
-        cicloId:           cicloCrearId as number,
-        semana:            parseInt(examenForm.semana, 10),
-        tipoExamen:        examenForm.tipoExamen,
-        subtipoExamen:     examenForm.subtipoExamen || undefined,
-        fecha:             examenForm.fecha,
-        cantidadPreguntas: examenForm.cantidadPreguntas ? parseInt(examenForm.cantidadPreguntas, 10) : undefined,
-        puntajeBuena:      examenForm.puntajeBuena  ? parseFloat(examenForm.puntajeBuena) : 4,
-        puntajeMala:       examenForm.puntajeMala   ? parseFloat(examenForm.puntajeMala)  : 1,
+        cicloId:      cicloCrearId as number,
+        semana:       parseInt(examenForm.semana, 10),
+        fecha:        examenForm.fecha,
+        plantillaId:  plantillaId as number,
+        configCursos: configCursos.length > 0 ? configCursos : undefined,
       })
       setSuccess('Examen creado correctamente.')
-      setExamenForm({ semana: '', tipoExamen: '', subtipoExamen: '', fecha: '', cantidadPreguntas: '', puntajeBuena: '4', puntajeMala: '1' })
+      setExamenForm({ semana: '', fecha: '' })
+      setPlantillaId(''); setPlantillaActual(null); setConfigCursos([])
       // Refrescar lista si está en el mismo ciclo
       if (cicloNotasId === cicloCrearId) {
         const res = await adminApi.getExamenesPorCiclo(cicloCrearId as number)
@@ -832,99 +877,94 @@ export function AdminExamenesView() {
                     onChange={(e) => setExamenForm({ ...examenForm, semana: e.target.value })} required />
                 </div>
                 <div className="exam-field">
-                  <label>Tipo de examen</label>
-                  <div className="exam-select-wrap">
-                    <select
-                      value={examenForm.tipoExamen}
-                      onChange={(e) => setExamenForm({
-                        ...examenForm,
-                        tipoExamen: e.target.value,
-                        subtipoExamen: '',        // resetear subtipo al cambiar tipo
-                      })}
-                      required
-                    >
-                      <option value="">-- Seleccionar tipo --</option>
-                      <option value="Anual">Anual</option>
-                      <option value="Semestral">Semestral</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Subtipo Anual ── */}
-              {examenForm.tipoExamen === 'Anual' && (
-                <div className="exam-field">
-                  <label>Subtipo <span style={{ color: '#e76f51', fontWeight: 400 }}>*</span></label>
-                  <div className="exam-select-wrap">
-                    <select
-                      value={examenForm.subtipoExamen}
-                      onChange={(e) => setExamenForm({ ...examenForm, subtipoExamen: e.target.value })}
-                      required
-                    >
-                      <option value="">-- Seleccionar subtipo --</option>
-                      <optgroup label="Simulacros Semanales">
-                        <option value="Simulacro Semanal - Matemáticas y Ciencias">Simulacro Semanal — Matemáticas y Ciencias</option>
-                        <option value="Simulacro Semanal - Humanidades">Simulacro Semanal — Humanidades</option>
-                      </optgroup>
-                      <optgroup label="Simulacros Bimestrales">
-                        <option value="Simulacro Bimestral">Simulacro Bimestral</option>
-                      </optgroup>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Subtipo Semestral ── */}
-              {examenForm.tipoExamen === 'Semestral' && (
-                <div className="exam-field">
-                  <label>Subtipo <span style={{ color: '#e76f51', fontWeight: 400 }}>*</span></label>
-                  <div className="exam-select-wrap">
-                    <select
-                      value={examenForm.subtipoExamen}
-                      onChange={(e) => setExamenForm({ ...examenForm, subtipoExamen: e.target.value })}
-                      required
-                    >
-                      <option value="">-- Seleccionar subtipo --</option>
-                      <option value="Semanal de Profesores">Semanal de Profesores</option>
-                      <optgroup label="Semanales por Área">
-                        <option value="Semanal por Área - Matemáticas y Ciencias">Semanal por Área — Matemáticas y Ciencias</option>
-                        <option value="Semanal por Área - Humanidades">Semanal por Área — Humanidades</option>
-                      </optgroup>
-                      <option value="Tipo Admisión">Tipo Admisión</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div className="exam-field-row">
-                <div className="exam-field">
                   <label>Fecha</label>
                   <input type="date" value={examenForm.fecha}
                     onChange={(e) => setExamenForm({ ...examenForm, fecha: e.target.value })} required />
                 </div>
-                <div className="exam-field">
-                  <label>N° preguntas</label>
-                  <input type="number" placeholder="Ej: 50" min={1}
-                    value={examenForm.cantidadPreguntas}
-                    onChange={(e) => setExamenForm({ ...examenForm, cantidadPreguntas: e.target.value })} />
-                </div>
               </div>
 
-              {/* Puntajes para fórmula Buenas/Malas */}
-              <div className="exam-field-row">
-                <div className="exam-field">
-                  <label>Pts. respuesta correcta</label>
-                  <input type="number" step="0.001" min={0} placeholder="4"
-                    value={examenForm.puntajeBuena}
-                    onChange={(e) => setExamenForm({ ...examenForm, puntajeBuena: e.target.value })} />
-                </div>
-                <div className="exam-field">
-                  <label>Pts. descontados (incorrecta)</label>
-                  <input type="number" step="0.001" min={0} placeholder="1.125"
-                    value={examenForm.puntajeMala}
-                    onChange={(e) => setExamenForm({ ...examenForm, puntajeMala: e.target.value })} />
-                </div>
+              {/* ── Plantilla ── */}
+              <div className="exam-field">
+                <label>Plantilla de examen <span style={{ color: '#e76f51', fontWeight: 400 }}>*</span></label>
+                {plantillas.length === 0 ? (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 9, padding: '10px 14px', fontSize: 12, color: '#92400e' }}>
+                    <i className="bi bi-exclamation-triangle" /> No hay plantillas disponibles.{' '}
+                    <a href="/admin/plantillas-examen" style={{ color: '#b45309', fontWeight: 700 }}>Crear plantillas →</a>
+                  </div>
+                ) : (
+                  <div className="exam-select-wrap">
+                    <select
+                      value={plantillaId}
+                      onChange={(e) => handleSelectPlantilla(e.target.value ? parseInt(e.target.value) : '')}
+                      required
+                    >
+                      <option value="">-- Seleccionar plantilla --</option>
+                      {plantillas.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre}{p.tipo_calculo === 'nota_directa' ? ' (nota directa)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
+
+              {/* ── Config de cursos (editable) ── */}
+              {plantillaActual && configCursos.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Cursos del examen — ajusta la cantidad de preguntas si es necesario
+                  </label>
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ background: 'var(--teal-dark)', padding: '7px 12px', display: 'grid', gridTemplateColumns: plantillaActual.tipo_calculo === 'buenas_malas' ? '2fr 1fr 1fr 1fr' : '2fr 1fr', gap: 8 }}>
+                      {['Curso', 'N° preg.', ...(plantillaActual.tipo_calculo === 'buenas_malas' ? ['Pts. buena', 'Pts. mala'] : [])].map(h => (
+                        <span key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(255,255,255,0.75)' }}>{h}</span>
+                      ))}
+                    </div>
+                    <div style={{ maxHeight: 260, overflowY: 'auto', background: '#fff' }}>
+                      {(() => {
+                        let lastSec = ''
+                        return configCursos.map((cur, i) => {
+                          const showSec = plantillaActual.tiene_secciones && cur.seccionNombre && cur.seccionNombre !== lastSec
+                          if (showSec) lastSec = cur.seccionNombre!
+                          return (
+                            <div key={i}>
+                              {showSec && (
+                                <div style={{ background: '#eff6ff', padding: '5px 12px', fontSize: 11, fontWeight: 700, color: '#1d3557', borderBottom: '1px solid #bfdbfe' }}>
+                                  <i className="bi bi-collection" style={{ marginRight: 6 }} />{cur.seccionNombre}
+                                </div>
+                              )}
+                              <div style={{ display: 'grid', gridTemplateColumns: plantillaActual.tipo_calculo === 'buenas_malas' ? '2fr 1fr 1fr 1fr' : '2fr 1fr', gap: 8, padding: '6px 12px', borderBottom: '1px solid #f0f4f5', alignItems: 'center' }}>
+                                <span style={{ fontSize: 12, color: 'var(--text-main)', fontWeight: 500 }}>{cur.nombre}</span>
+                                <input
+                                  type="number" min={0} placeholder="—"
+                                  value={cur.cantidadPreguntas ?? ''}
+                                  onChange={e => updateConfigCurso(i, 'cantidadPreguntas', e.target.value ? parseInt(e.target.value) : null)}
+                                  style={{ width: '100%', padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', background: '#fafafa', outline: 'none' }}
+                                />
+                                {plantillaActual.tipo_calculo === 'buenas_malas' && <>
+                                  <input
+                                    type="number" step="0.001" min={0}
+                                    value={cur.puntajeBuena}
+                                    onChange={e => updateConfigCurso(i, 'puntajeBuena', parseFloat(e.target.value) || 4)}
+                                    style={{ width: '100%', padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', background: '#fafafa', outline: 'none' }}
+                                  />
+                                  <input
+                                    type="number" step="0.001" min={0}
+                                    value={cur.puntajeMala}
+                                    onChange={e => updateConfigCurso(i, 'puntajeMala', parseFloat(e.target.value) || 1)}
+                                    style={{ width: '100%', padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', background: '#fafafa', outline: 'none' }}
+                                  />
+                                </>}
+                              </div>
+                            </div>
+                          )
+                        })
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button type="submit" className="btn-crear-examen" disabled={creando}>
                 {creando
@@ -994,7 +1034,7 @@ export function AdminExamenesView() {
                         onClick={() => setSelectedExamen(ex)}
                       >
                         <div className="exam-list-item-left">
-                          <div className="exam-list-item-tipo">{ex.tipo_examen ?? ex.tipoExamen} — Sem. {ex.semana}</div>
+                          <div className="exam-list-item-tipo">{ex.subtipo_examen ?? ex.subtipoExamen ?? ex.tipo_examen ?? ex.tipoExamen} — Sem. {ex.semana}</div>
                           <div className="exam-list-item-meta">
                             {fmtFecha(ex.fecha)}
                             {(ex.cantidad_preguntas ?? ex.cantidadPreguntas) && <span style={{ marginLeft: 8 }}><i className="bi bi-question-circle me-1" />{ex.cantidad_preguntas ?? ex.cantidadPreguntas} preg.</span>}

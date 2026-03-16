@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { adminApi } from '../../models/adminApi'
 import type { AlumnoListItem, Ciclo } from '../../models/types'
 import { descargarCarnet } from '../../utils/generarCarnet'
+import api from '../../config/api'
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -164,7 +165,7 @@ export function AdminCarnetsView() {
   const [generating, setGenerating] = useState<Record<string, boolean>>({})
 
   // Bulk download state
-  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null)
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; label: string } | null>(null)
 
   // Load ciclos on mount
   useEffect(() => {
@@ -230,7 +231,7 @@ export function AdminCarnetsView() {
 
   const handleDescargarTodos = async () => {
     if (!alumnos.length) return
-    setBulkProgress({ done: 0, total: alumnos.length })
+    setBulkProgress({ done: 0, total: alumnos.length, label: 'carnet' })
     for (let i = 0; i < alumnos.length; i++) {
       const alumno = alumnos[i]
       const key = alumno.codigo ?? String(alumno.id)
@@ -240,9 +241,31 @@ export function AdminCarnetsView() {
         await descargarCarnet(carnetData)
       } catch { /* skip failed */ }
       setGenerating(prev => ({ ...prev, [key]: false }))
-      setBulkProgress({ done: i + 1, total: alumnos.length })
-      // Small delay to avoid browser blocking too many downloads
+      setBulkProgress({ done: i + 1, total: alumnos.length, label: 'carnet' })
       await new Promise(r => setTimeout(r, 400))
+    }
+    setBulkProgress(null)
+  }
+
+  const handleDescargarQRs = async () => {
+    if (!alumnos.length) return
+    setBulkProgress({ done: 0, total: alumnos.length, label: 'QR' })
+    for (let i = 0; i < alumnos.length; i++) {
+      const alumno = alumnos[i]
+      const codigo = alumno.codigo ?? String(alumno.id)
+      try {
+        const resp = await api.get(`/api/admin/alumno/${encodeURIComponent(codigo)}/qr`, {
+          responseType: 'blob',
+        })
+        const url = URL.createObjectURL(resp.data as Blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `qr_${codigo}.png`
+        a.click()
+        URL.revokeObjectURL(url)
+      } catch { /* skip */ }
+      setBulkProgress({ done: i + 1, total: alumnos.length, label: 'QR' })
+      await new Promise(r => setTimeout(r, 300))
     }
     setBulkProgress(null)
   }
@@ -283,16 +306,28 @@ export function AdminCarnetsView() {
           </select>
 
           {alumnos.length > 0 && (
-            <button
-              className="btn-primary-cec"
-              onClick={handleDescargarTodos}
-              disabled={isBulkRunning}
-            >
-              {isBulkRunning
-                ? <><span className="spinner-xs" /> Generando...</>
-                : <><i className="bi bi-download" /> Descargar todos</>
-              }
-            </button>
+            <>
+              <button
+                className="btn-primary-cec"
+                onClick={handleDescargarTodos}
+                disabled={isBulkRunning}
+              >
+                {isBulkRunning && bulkProgress?.label === 'carnet'
+                  ? <><span className="spinner-xs" /> Generando carnets...</>
+                  : <><i className="bi bi-file-earmark-person" /> Descargar carnets</>
+                }
+              </button>
+              <button
+                className="btn-outline-cec"
+                onClick={handleDescargarQRs}
+                disabled={isBulkRunning}
+              >
+                {isBulkRunning && bulkProgress?.label === 'QR'
+                  ? <><span className="spinner-xs" /> Descargando QRs...</>
+                  : <><i className="bi bi-qr-code" /> Descargar QRs</>
+                }
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -301,7 +336,7 @@ export function AdminCarnetsView() {
       {bulkProgress && (
         <div className="progress-banner">
           <span className="spinner-xs" />
-          <span>Generando carnet {bulkProgress.done} de {bulkProgress.total}…</span>
+          <span>{bulkProgress.label === 'QR' ? 'Descargando QR' : 'Generando carnet'} {bulkProgress.done} de {bulkProgress.total}…</span>
           <div className="progress-bar-outer">
             <div
               className="progress-bar-inner"

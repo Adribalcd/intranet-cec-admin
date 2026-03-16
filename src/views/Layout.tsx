@@ -301,6 +301,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </NavLink>
                   </li>
                   <li>
+                    <NavLink className="cec-nav-link" to="/admin/plantillas-examen">
+                      <i className="bi bi-layout-text-sidebar-reverse" /> Plantillas de examen
+                    </NavLink>
+                  </li>
+                  <li>
                     <NavLink className="cec-nav-link" to="/admin/materiales">
                       <i className="bi bi-folder-fill" /> Materiales
                     </NavLink>

@@ -192,16 +192,61 @@ export interface AsistenciaInhabilitarBody {
   fecha: string
 }
 
+// --- Admin: Plantillas de examen
+export interface PlantillaCursoItem {
+  id?: number
+  nombre: string
+  cantidadPreguntas?: number | null
+  puntajeBuena: number
+  puntajeMala: number
+  orden: number
+  /** Presente al leer una plantilla con secciones */
+  seccionNombre?: string
+}
+
+export interface PlantillaSeccionItem {
+  id?: number
+  nombre: string
+  orden: number
+  Cursos: PlantillaCursoItem[]
+}
+
+export interface PlantillaExamen {
+  id: number
+  nombre: string
+  descripcion?: string | null
+  tipo_calculo: 'buenas_malas' | 'nota_directa'
+  tiene_secciones: 0 | 1
+  activo: 0 | 1
+  Secciones?: PlantillaSeccionItem[]
+  /** Cursos directos (sin sección) */
+  Cursos?: PlantillaCursoItem[]
+}
+
+/** Config de un curso para un examen específico (override de la plantilla) */
+export interface ConfigCursoExamen {
+  nombre: string
+  seccionNombre?: string | null
+  cantidadPreguntas?: number | null
+  puntajeBuena: number
+  puntajeMala: number
+  orden: number
+}
+
 // --- Admin: Exámenes
 export interface ExamenBody {
   cicloId: number
   semana: number
-  tipoExamen: string
+  tipoExamen?: string
   subtipoExamen?: string
   fecha: string
   cantidadPreguntas?: number
   puntajeBuena?: number
   puntajeMala?: number
+  /** ID de la plantilla seleccionada */
+  plantillaId?: number
+  /** Config de cursos overrideada para este examen */
+  configCursos?: ConfigCursoExamen[]
 }
 
 export interface CalificacionExamenItem {
@@ -230,6 +275,11 @@ export interface Examen {
   puntaje_pregunta_buena?: number
   puntajePreguntaMala?: number
   puntaje_pregunta_mala?: number
+  plantillaId?: number
+  plantilla_id?: number
+  configCursosJson?: string | null
+  config_cursos_json?: string | null
+  Plantilla?: PlantillaExamen
 }
 
 // --- Admin: Horario de cursos
