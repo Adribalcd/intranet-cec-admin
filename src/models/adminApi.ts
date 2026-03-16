@@ -19,7 +19,8 @@ import type {
   Examen,
   CalificacionExamenItem,
   HorarioAdmin,
-  HorarioBody
+  HorarioBody,
+  PlantillaExamen,
 } from './types'
 
 const PREFIX = '/api/admin'
@@ -248,5 +249,22 @@ export const adminApi = {
   getPagosOnlinePendientes() { return api.get<any[]>(`${PREFIX}/pagos/pendientes-online`) },
   confirmarPago(id: number, body: { accion: 'confirmar' | 'rechazar'; observaciones?: string }) {
     return api.put<any>(`${PREFIX}/pago/${id}/confirmar`, body)
+  },
+
+  // --- Plantillas de examen
+  getPlantillasExamen() {
+    return api.get<PlantillaExamen[]>(`${PREFIX}/plantillas-examen`)
+  },
+  getPlantillaExamen(id: number) {
+    return api.get<PlantillaExamen>(`${PREFIX}/plantillas-examen/${id}`)
+  },
+  crearPlantillaExamen(body: Omit<PlantillaExamen, 'id' | 'activo'> & { secciones?: any[]; cursos?: any[] }) {
+    return api.post<{ id: number; nombre: string }>(`${PREFIX}/plantillas-examen`, body)
+  },
+  actualizarPlantillaExamen(id: number, body: Partial<PlantillaExamen> & { secciones?: any[]; cursos?: any[] }) {
+    return api.put(`${PREFIX}/plantillas-examen/${id}`, body)
+  },
+  eliminarPlantillaExamen(id: number) {
+    return api.delete(`${PREFIX}/plantillas-examen/${id}`)
   },
 }
