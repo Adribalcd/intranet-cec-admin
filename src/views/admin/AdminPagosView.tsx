@@ -74,7 +74,6 @@ export function AdminPagosView() {
 
   // Específicos para Tabs nuevos
   const [configPagos, setConfigPagos] = useState<any>(null)
-  const [pagosOnline, setPagosOnline] = useState<any[]>([])
 
   useEffect(() => {
     adminApi.getCiclos().then(r => {
@@ -104,20 +103,15 @@ export function AdminPagosView() {
     adminApi.getConfigPagos(cicloId).then(r => setConfigPagos(r.data))
   }, [cicloId])
 
-  const loadPagosOnline = useCallback(() => {
-    adminApi.getPagosOnlinePendientes().then(r => setPagosOnline(r.data))
-  }, [])
-
   useEffect(() => {
     if (!cicloId) return
     setSelectedAlumno(null)
     setAlumnoConceptos([])
     if (tab === 0) loadConceptos()
     if (tab === 1) loadAlumnos()
-    if (tab === 3) loadResumen()
-    if (tab === 4) loadConfigPagos()
-    if (tab === 2) loadPagosOnline()
-  }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen, loadConfigPagos, loadPagosOnline])
+    if (tab === 2) loadResumen()
+    if (tab === 3) loadConfigPagos()
+  }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen, loadConfigPagos])
 
   const loadPagosAlumno = useCallback((alumno: any) => {
     if (!cicloId || !alumno) return
@@ -151,12 +145,6 @@ export function AdminPagosView() {
   const deleteConcepto = async (id: number) => {
     if (!confirm('¿Eliminar este concepto y todos sus pagos?')) return
     await adminApi.deleteConceptoPago(id); loadConceptos(); flash('Concepto eliminado')
-  }
-
-  const togglePagoOnlineConcepto = async (id: number, val: boolean) => {
-    await adminApi.updateConceptoPago(id, { permite_pago_online: val })
-    loadConceptos()
-    flash('Configuración de pago online actualizada')
   }
 
   // ── Config Ciclo ──
@@ -301,9 +289,6 @@ export function AdminPagosView() {
                     <td style={s.td}>{c.orden}</td>
                     <td style={s.td}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button style={{ ...s.btnSecondary, background: c.permite_pago_online ? '#e8f5f6' : '#fff0f0', color: c.permite_pago_online ? '#0a9396' : '#c0392b' }} title="Permitir pago online" onClick={() => togglePagoOnlineConcepto(c.id, !c.permite_pago_online)}>
-                          <i className={`bi bi-globe${c.permite_pago_online ? '' : '-slash'}`} /> {c.permite_pago_online ? 'Sí' : 'No'}
-                        </button>
                         <button style={s.btnSecondary} onClick={() => openEditConcepto(c)}><i className="bi bi-pencil" /></button>
                         <button style={s.btnDanger} onClick={() => deleteConcepto(c.id)}><i className="bi bi-trash" /></button>
                       </div>
