@@ -74,7 +74,6 @@ export function AdminPagosView() {
 
   // Específicos para Tabs nuevos
   const [configPagos, setConfigPagos] = useState<any>(null)
-  const [pagosOnline, setPagosOnline] = useState<any[]>([])
 
   useEffect(() => {
     adminApi.getCiclos().then(r => {
@@ -104,20 +103,15 @@ export function AdminPagosView() {
     adminApi.getConfigPagos(cicloId).then(r => setConfigPagos(r.data))
   }, [cicloId])
 
-  const loadPagosOnline = useCallback(() => {
-    adminApi.getPagosOnlinePendientes().then(r => setPagosOnline(r.data))
-  }, [])
-
   useEffect(() => {
     if (!cicloId) return
     setSelectedAlumno(null)
     setAlumnoConceptos([])
     if (tab === 0) loadConceptos()
     if (tab === 1) loadAlumnos()
-    if (tab === 3) loadResumen()
-    if (tab === 4) loadConfigPagos()
-    if (tab === 2) loadPagosOnline()
-  }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen, loadConfigPagos, loadPagosOnline])
+    if (tab === 2) loadResumen()
+    if (tab === 3) loadConfigPagos()
+  }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen, loadConfigPagos])
 
   const loadPagosAlumno = useCallback((alumno: any) => {
     if (!cicloId || !alumno) return
@@ -153,12 +147,6 @@ export function AdminPagosView() {
     await adminApi.deleteConceptoPago(id); loadConceptos(); flash('Concepto eliminado')
   }
 
-  const togglePagoOnlineConcepto = async (id: number, val: boolean) => {
-    await adminApi.updateConceptoPago(id, { permite_pago_online: val })
-    loadConceptos()
-    flash('Configuración de pago online actualizada')
-  }
-
   // ── Config Ciclo ──
   const saveConfig = async () => {
     if (!cicloId || !configPagos) return
@@ -166,17 +154,6 @@ export function AdminPagosView() {
       await adminApi.upsertConfigPagos(cicloId, configPagos)
       flash('Configuración guardada')
     } catch { flash('Error al guardar config') }
-  }
-
-  // ── Pagos Online ──
-  const handleAccionPago = async (pago: any, accion: 'confirmar' | 'rechazar') => {
-    const obs = prompt(`Observaciones para el alumno (${accion}):`, '')
-    if (obs === null) return
-    try {
-      await adminApi.confirmarPago(pago.id, { accion, observaciones: obs })
-      loadPagosOnline()
-      flash(`Pago ${accion === 'confirmar' ? 'confirmado' : 'rechazado'}`)
-    } catch { flash('Error al procesar') }
   }
 
   // ── Pago CRUD ──
@@ -257,7 +234,7 @@ export function AdminPagosView() {
 
       {/* Tabs */}
       <div style={s.tabBar}>
-        {['Conceptos de pago', 'Pagos por alumno', 'Pagos Online', 'Resumen', 'Configuración'].map((t, i) => (
+        {['Conceptos de pago', 'Pagos por alumno', 'Resumen', 'Configuración'].map((t, i) => (
           <button key={i} style={tab === i ? s.tabActive : s.tab} onClick={() => setTab(i)}>{t}</button>
         ))}
       </div>
@@ -301,9 +278,6 @@ export function AdminPagosView() {
                     <td style={s.td}>{c.orden}</td>
                     <td style={s.td}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button style={{ ...s.btnSecondary, background: c.permite_pago_online ? '#e8f5f6' : '#fff0f0', color: c.permite_pago_online ? '#0a9396' : '#c0392b' }} title="Permitir pago online" onClick={() => togglePagoOnlineConcepto(c.id, !c.permite_pago_online)}>
-                          <i className={`bi bi-globe${c.permite_pago_online ? '' : '-slash'}`} /> {c.permite_pago_online ? 'Sí' : 'No'}
-                        </button>
                         <button style={s.btnSecondary} onClick={() => openEditConcepto(c)}><i className="bi bi-pencil" /></button>
                         <button style={s.btnDanger} onClick={() => deleteConcepto(c.id)}><i className="bi bi-trash" /></button>
                       </div>
@@ -408,63 +382,8 @@ export function AdminPagosView() {
       )}
 
       {/* ── TAB 2: Pagos Online ── */}
+      {/* ── TAB 2: Resumen ── */}
       {tab === 2 && (
-        <div style={s.card}>
-          <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 15 }}>Pagos Online Pendientes de Revisión</span>
-            <button style={s.btnSecondary} onClick={loadPagosOnline}><i className="bi bi-arrow-clockwise" /> Actualizar</button>
-          </div>
-          {pagosOnline.length === 0 ? (
-            <p style={{ color: '#6c8a91', fontSize: 13 }}>No hay pagos pendientes de revisión.</p>
-          ) : (
-            <table style={s.table}>
-              <thead>
-                <tr>
-                  <th style={s.th}>Fecha</th>
-                  <th style={s.th}>Alumno</th>
-                  <th style={s.th}>Concepto</th>
-                  <th style={s.th}>Monto</th>
-                  <th style={s.th}>Método</th>
-                  <th style={s.th}>N° Op. / Hora</th>
-                  <th style={s.th}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagosOnline.map(p => (
-                  <tr key={p.id}>
-                    <td style={s.td}>{p.fecha_pago}</td>
-                    <td style={s.td}>
-                      <strong>{p.Alumno?.nombres} {p.Alumno?.apellidos}</strong><br />
-                      <span style={{ fontSize: 11, color: '#6c8a91' }}>{p.Alumno?.codigo}</span>
-                    </td>
-                    <td style={s.td}>
-                      <strong>{p.ConceptoPago?.descripcion}</strong><br />
-                      <span style={{ fontSize: 11, color: '#6c8a91' }}>{TIPO_LABELS[p.ConceptoPago?.tipo]}</span>
-                    </td>
-                    <td style={s.td}><strong>S/ {Number(p.monto_pagado).toFixed(2)}</strong></td>
-                    <td style={s.td}>
-                      <span style={{ ...s.badge, background: '#e8f0ff', color: '#5c40b0' }}>{p.metodo_pago}</span>
-                    </td>
-                    <td style={s.td}>
-                      {p.numero_operacion || '—'}
-                      {p.observaciones && <div style={{ fontSize: 11, color: '#6c8a91' }}>{p.observaciones}</div>}
-                    </td>
-                    <td style={s.td}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button style={{ ...s.btnPrimary, background: '#27ae60' }} onClick={() => handleAccionPago(p, 'confirmar')}><i className="bi bi-check-lg" /> Confirmar</button>
-                        <button style={s.btnDanger} onClick={() => handleAccionPago(p, 'rechazar')}><i className="bi bi-x-lg" /> Rechazar</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* ── TAB 3: Resumen ── */}
-      {tab === 3 && (
         <div style={{ ...s.card, overflowX: 'auto' }}>
           <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 15 }}>Resumen de pagos por ciclo</span>
@@ -516,8 +435,8 @@ export function AdminPagosView() {
         </div>
       )}
 
-      {/* ── TAB 4: Configuración ── */}
-      {tab === 4 && (
+      {/* ── TAB 3: Configuración ── */}
+      {tab === 3 && (
         <div style={s.card}>
           <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 15 }}>Configuración de Pagos por Ciclo</span>
@@ -528,23 +447,11 @@ export function AdminPagosView() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
               <div style={{ padding: '16px', border: '1.5px solid #e0eef0', borderRadius: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0d4f5c', marginBottom: 12 }}>Visibilidad y Métodos Online</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0d4f5c', marginBottom: 12 }}>Visibilidad</h3>
                 <div style={s.formGroup}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
                     <input type="checkbox" checked={configPagos.pagos_visible} onChange={e => setConfigPagos((f: any) => ({ ...f, pagos_visible: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
                     Pagos visibles para los alumnos del ciclo
-                  </label>
-                </div>
-                <div style={s.formGroup}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                    <input type="checkbox" checked={configPagos.permite_transferencia} onChange={e => setConfigPagos((f: any) => ({ ...f, permite_transferencia: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
-                    Permitir pago por transferencia bancaria
-                  </label>
-                </div>
-                <div style={s.formGroup}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                    <input type="checkbox" checked={configPagos.permite_yape_plin} onChange={e => setConfigPagos((f: any) => ({ ...f, permite_yape_plin: e.target.checked }))} style={{ accentColor: '#0a9396' }} />
-                    Permitir pago por Yape / Plin
                   </label>
                 </div>
               </div>
@@ -647,24 +554,6 @@ export function AdminPagosView() {
                 <div style={s.label}>Orden</div>
                 <input style={s.input} type="number" value={conceptoForm.orden} onChange={e => setConceptoForm((f: any) => ({ ...f, orden: Number(e.target.value) }))} />
               </div>
-            </div>
-
-            <div style={{ background: '#f0f7f8', padding: '12px 16px', borderRadius: 10, border: '1px solid #cde0e4', marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input 
-                  type="checkbox" 
-                  id="chkPermiteOnline"
-                  checked={conceptoForm.permite_pago_online} 
-                  onChange={e => setConceptoForm((f: any) => ({ ...f, permite_pago_online: e.target.checked }))}
-                  style={{ width: 18, height: 18, cursor: 'pointer' }}
-                />
-                <label htmlFor="chkPermiteOnline" style={{ fontSize: 13, fontWeight: 700, color: '#0d4f5c', cursor: 'pointer' }}>
-                   Habilitar botón "Pagar en Línea" para el alumno
-                </label>
-              </div>
-              <p style={{ fontSize: 12, color: '#6c8a91', margin: '6px 0 0 28px', lineHeight: '1.4' }}>
-                Si activas esto, los alumnos verán un botón en su intranet para registrar este pago enviando su comprobante (BCP, BBVA, Yape, etc).
-              </p>
             </div>
 
             <div style={{ ...s.row, justifyContent: 'flex-end', marginTop: 8 }}>
