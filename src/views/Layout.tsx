@@ -197,7 +197,7 @@ const sidebarStyles = `
 `
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, logout } = useAuth()
+  const { isAuthenticated, logout, rolAdmin, nombreAdmin } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -242,8 +242,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <i className="bi bi-person-fill" />
               </div>
               <div className="cec-user-info">
-                <div className="name">Administrador</div>
-                <span className="cec-role-badge">ADMIN</span>
+                <div className="name">{nombreAdmin || 'Administrador'}</div>
+                <span className="cec-role-badge" style={{
+                  background: rolAdmin === 'general' ? '#0a9396' : rolAdmin === 'academico' ? '#5c40b0' : '#856404',
+                  color: 'white', fontSize: 9, padding: '2px 6px', borderRadius: 6, textTransform: 'uppercase'
+                }}>
+                  {rolAdmin === 'general' ? 'GENERAL' : rolAdmin === 'academico' ? 'ACADÉMICO' : 'PAGOS'}
+                </span>
               </div>
             </div>
           )}
@@ -258,57 +263,71 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <i className="bi bi-speedometer2" /> Panel
                   </NavLink>
                 </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/ciclos">
-                    <i className="bi bi-arrow-repeat" /> Ciclos
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/cursos">
-                    <i className="bi bi-journal-text" /> Cursos
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/alumnos">
-                    <i className="bi bi-people-fill" /> Alumnos
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/matricula">
-                    <i className="bi bi-card-checklist" /> Matrícula
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/horario">
-                    <i className="bi bi-calendar-week-fill" /> Horarios
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/asistencia">
-                    <i className="bi bi-clipboard-data-fill" /> Asistencia
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/examenes">
-                    <i className="bi bi-file-earmark-text-fill" /> Exámenes
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/materiales">
-                    <i className="bi bi-folder-fill" /> Materiales
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/carnets">
-                    <i className="bi bi-credit-card-2-front-fill" /> Carnets
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink className="cec-nav-link" to="/admin/pagos" end={false}>
-                    <i className="bi bi-cash-stack" />
-                    <span>Pagos</span>
-                  </NavLink>
-                </li>
+                {/* Módulos académicos — visibles para general y academico */}
+                {rolAdmin !== 'pagos' && (<>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/ciclos">
+                      <i className="bi bi-arrow-repeat" /> Ciclos
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/cursos">
+                      <i className="bi bi-journal-text" /> Cursos
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/alumnos">
+                      <i className="bi bi-people-fill" /> Alumnos
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/matricula">
+                      <i className="bi bi-card-checklist" /> Matrícula
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/horario">
+                      <i className="bi bi-calendar-week-fill" /> Horarios
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/asistencia">
+                      <i className="bi bi-clipboard-data-fill" /> Asistencia
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/examenes">
+                      <i className="bi bi-file-earmark-text-fill" /> Exámenes
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/materiales">
+                      <i className="bi bi-folder-fill" /> Materiales
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/carnets">
+                      <i className="bi bi-credit-card-2-front-fill" /> Carnets
+                    </NavLink>
+                  </li>
+                </>)}
+                {/* Módulo pagos — visibles para general y pagos */}
+                {rolAdmin !== 'academico' && (
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/pagos" end={false}>
+                      <i className="bi bi-cash-stack" />
+                      <span>Pagos</span>
+                    </NavLink>
+                  </li>
+                )}
+                {/* Gestión de usuarios — solo general */}
+                {rolAdmin === 'general' && (
+                  <li>
+                    <NavLink className="cec-nav-link" to="/admin/usuarios">
+                      <i className="bi bi-shield-lock-fill" /> Usuarios
+                    </NavLink>
+                  </li>
+                )}
               </ul>
             </>
           )}

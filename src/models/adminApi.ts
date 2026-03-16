@@ -33,7 +33,21 @@ interface LoginBody {
 export const adminApi = {
   // POST /login - No auth
   login(body: LoginBody) {
-    return api.post<{ token: string }>(`${PREFIX}/login`, body)
+    return api.post<{ token: string; rolAdmin?: string; nombre?: string }>(`${PREFIX}/login`, body)
+  },
+
+  // --- Usuarios admin
+  getAdminUsers() {
+    return api.get<{ id: number; usuario: string; nombre: string | null; rol: string }[]>(`${PREFIX}/admin-users`)
+  },
+  createAdminUser(body: { usuario: string; contrasena: string; nombre?: string; rol: string }) {
+    return api.post(`${PREFIX}/admin-users`, body)
+  },
+  updateAdminUser(id: number, body: { nombre?: string; rol?: string; contrasena?: string }) {
+    return api.put(`${PREFIX}/admin-users/${id}`, body)
+  },
+  deleteAdminUser(id: number) {
+    return api.delete(`${PREFIX}/admin-users/${id}`)
   },
 
   // --- Ciclos
