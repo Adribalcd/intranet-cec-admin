@@ -86,6 +86,9 @@ export const adminApi = {
   matriculaManual(body: MatriculaManualBody) {
     return api.post(`${PREFIX}/matricula/manual`, body)
   },
+  updateMatriculaInfo(matriculaId: number, body: { area?: string | null; carreraPref?: string | null; univMeta?: string | null }) {
+    return api.put(`${PREFIX}/matricula/${matriculaId}/info`, body)
+  },
   matriculaMasiva(body: MatriculaMasivaBody) {
     return api.post(`${PREFIX}/matricula/masiva`, body)
   },
