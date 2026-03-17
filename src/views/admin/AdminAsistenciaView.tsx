@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import { adminApi } from '../../models/adminApi'
 import type { Ciclo, AsistenciaListItem } from '../../models/types'
 import * as XLSX from 'xlsx'
@@ -68,7 +69,88 @@ const styles = `
   .asis-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
   @media (max-width:640px) { .asis-grid2 { grid-template-columns:1fr; } }
   .asis-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+  .asis-mode-toggle { display:flex; gap:0; background:#f1f5f9; border-radius:10px; padding:4px; margin-bottom:18px; }
+  .asis-mode-btn { flex:1; padding:9px 0; border:none; background:transparent; border-radius:8px; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; transition:.18s; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .asis-mode-btn.active { background:white; color:var(--teal-dark); box-shadow:0 2px 8px rgba(0,0,0,.1); }
+  .qr-viewport { position:relative; width:100%; max-width:340px; margin:0 auto 16px; border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.18); }
+  .qr-viewport #qr-reader { border-radius:16px; overflow:hidden; }
+  .qr-viewport #qr-reader video { border-radius:16px; }
+  .qr-corner { position:absolute; width:36px; height:36px; border-color:var(--teal); border-style:solid; border-width:0; z-index:10; }
+  .qr-corner-tl { top:12px; left:12px; border-top-width:4px; border-left-width:4px; border-radius:4px 0 0 0; }
+  .qr-corner-tr { top:12px; right:12px; border-top-width:4px; border-right-width:4px; border-radius:0 4px 0 0; }
+  .qr-corner-bl { bottom:12px; left:12px; border-bottom-width:4px; border-left-width:4px; border-radius:0 0 0 4px; }
+  .qr-corner-br { bottom:12px; right:12px; border-bottom-width:4px; border-right-width:4px; border-radius:0 0 4px 0; }
+  .qr-scan-line { position:absolute; left:16px; right:16px; height:2px; background:linear-gradient(90deg,transparent,var(--teal),transparent); animation:qrscan 2s ease-in-out infinite; z-index:10; }
+  @keyframes qrscan { 0%,100%{top:15%} 50%{top:82%} }
+  .qr-hint { text-align:center; font-size:12px; color:var(--muted); margin-bottom:0; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .countdown-ring { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:var(--teal); color:white; font-size:15px; font-weight:700; flex-shrink:0; }
 `
+
+// ── Componente escáner QR ──────────────────────────────────────────────────
+interface QrScannerProps {
+  onScan: (codigo: string) => void
+  active: boolean
+}
+function QrScanner({ onScan, active }: QrScannerProps) {
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const mountedRef = useRef(false)
+
+  useEffect(() => {
+    if (!active) return
+
+    const scanner = new Html5Qrcode('qr-reader')
+    scannerRef.current = scanner
+    mountedRef.current = true
+
+    scanner.start(
+      { facingMode: 'environment' },
+      { fps: 12, qrbox: { width: 220, height: 220 } },
+      (decodedText) => {
+        if (!mountedRef.current) return
+        const codigo = decodedText.trim()
+        onScan(codigo)
+      },
+      () => { /* ignore scan errors */ }
+    ).catch(() => {
+      // Cámara trasera no disponible, intentar cualquier cámara
+      scanner.start(
+        { facingMode: 'user' },
+        { fps: 12, qrbox: { width: 220, height: 220 } },
+        (decodedText) => { if (mountedRef.current) onScan(decodedText.trim()) },
+        () => {}
+      ).catch(() => {})
+    })
+
+    return () => {
+      mountedRef.current = false
+      scanner.isScanning && scanner.stop().catch(() => {})
+    }
+  }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!active) return null
+
+  return (
+    <div className="qr-viewport">
+      <div id="qr-reader" style={{ width: '100%' }} />
+      <div className="qr-corner qr-corner-tl" />
+      <div className="qr-corner qr-corner-tr" />
+      <div className="qr-corner qr-corner-bl" />
+      <div className="qr-corner qr-corner-br" />
+      <div className="qr-scan-line" />
+    </div>
+  )
+}
+
+// ── Contador regresivo para auto-confirmar ────────────────────────────────
+function Countdown({ seconds, onDone }: { seconds: number; onDone: () => void }) {
+  const [left, setLeft] = useState(seconds)
+  useEffect(() => {
+    if (left <= 0) { onDone(); return }
+    const t = setTimeout(() => setLeft(l => l - 1), 1000)
+    return () => clearTimeout(t)
+  }, [left]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <span className="countdown-ring">{left}</span>
+}
 
 interface AlumnoValidado {
   nombres: string
@@ -110,6 +192,8 @@ export function AdminAsistenciaView() {
   const [busqueda, setBusqueda] = useState({ cicloId: '', fecha: todayISO() })
   const [listado, setListado] = useState<AsistenciaListItem[]>([])
   const [procesando, setProcesando] = useState(false)
+  const [modoQr, setModoQr] = useState(false)
+  const [qrActivo, setQrActivo] = useState(false)
 
   const dniInputRef = useRef<HTMLInputElement>(null)
 
@@ -128,13 +212,22 @@ export function AdminAsistenciaView() {
 
   const limpiarAlertas = () => { setError(''); setSuccess('') }
 
-  const handleValidar = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const activarModoQr = (activo: boolean) => {
+    setModoQr(activo)
+    setQrActivo(activo)
+    setAlumnoValidado(null)
+    setDni('')
     limpiarAlertas()
-    if (!dni.trim()) return
+    if (!activo) setTimeout(() => dniInputRef.current?.focus(), 100)
+  }
+
+  const validarCodigo = useCallback(async (codigo: string) => {
+    if (!codigo.trim()) return
+    setQrActivo(false) // detener escáner mientras procesa
     setProcesando(true)
+    limpiarAlertas()
     try {
-      const res = await adminApi.getAlumno(dni.trim())
+      const res = await adminApi.getAlumno(codigo.trim())
       const data = res.data as any
       setAlumnoValidado({
         nombres:   data.nombres,
@@ -144,11 +237,17 @@ export function AdminAsistenciaView() {
         ciclo:     data.Matriculas?.[0]?.Ciclo ?? null,
       })
     } catch {
-      setError('Alumno no encontrado. Verifica el código o DNI.')
-      dniInputRef.current?.focus()
+      setError('Alumno no encontrado: ' + codigo)
+      // Reactivar escáner para seguir escaneando
+      setTimeout(() => setQrActivo(true), 1500)
     } finally {
       setProcesando(false)
     }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleValidar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await validarCodigo(dni)
   }
 
   const handleConfirmarAsistencia = async () => {
@@ -166,7 +265,12 @@ export function AdminAsistenciaView() {
       )
       setAlumnoValidado(null)
       setDni('')
-      setTimeout(() => dniInputRef.current?.focus(), 200)
+      if (modoQr) {
+        // Reactivar escáner para el siguiente alumno
+        setTimeout(() => setQrActivo(true), 600)
+      } else {
+        setTimeout(() => dniInputRef.current?.focus(), 200)
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Error al registrar asistencia.'
       setError(msg)
@@ -343,68 +447,122 @@ export function AdminAsistenciaView() {
                 Horario disponible: <strong>Lunes a Sábado, 07:00 – 11:00</strong>
               </p>
             </div>
-          ) : !alumnoValidado ? (
-            <form onSubmit={handleValidar}>
-              <label className="asis-label">Código o DNI del Alumno</label>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 0 }}>
-                <input
-                  ref={dniInputRef}
-                  className="asis-input"
-                  value={dni}
-                  onChange={e => setDni(e.target.value)}
-                  placeholder="Ej: CEC-001 o 74859612"
-                  style={{ flex: 1 }}
-                />
-                <button className="btn-teal" type="submit" disabled={procesando || !dni.trim()}>
-                  {procesando
-                    ? <><div className="asis-spinner" /> Buscando...</>
-                    : <><i className="bi bi-search" /> Validar</>}
-                </button>
-              </div>
-              <p style={{ fontSize: 12, color: '#6c757d', marginTop: 10, marginBottom: 0 }}>
-                <i className="bi bi-info-circle" style={{ marginRight: 5 }} />
-                Ingresa el código del alumno y presiona <strong>Enter</strong> o el botón Validar.
-              </p>
-            </form>
           ) : (
             <>
-              <div className="alumno-card">
-                {alumnoValidado.foto_url ? (
-                  <img
-                    src={alumnoValidado.foto_url}
-                    className="alumno-photo"
-                    alt={alumnoValidado.nombres}
-                    onError={e => { (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(alumnoValidado.nombres)}&background=0a9396&color=fff&size=90` }}
-                  />
-                ) : (
-                  <div className="alumno-photo-placeholder">
-                    <i className="bi bi-person-fill" />
-                  </div>
-                )}
-                <div className="alumno-info">
-                  <div className="alumno-name">{alumnoValidado.nombres} {alumnoValidado.apellidos}</div>
-                  <div className="alumno-meta">
-                    <span className="alumno-chip"><i className="bi bi-qr-code" />{alumnoValidado.codigo}</span>
-                    {alumnoValidado.ciclo && (
-                      <span className="alumno-chip"><i className="bi bi-arrow-repeat" />{alumnoValidado.ciclo.nombres}</span>
-                    )}
-                  </div>
-                  <span className={`alumno-estado-badge ${esTardanzaAhora() ? 'alumno-estado-tardanza' : 'alumno-estado-puntual'}`}>
-                    <i className={`bi bi-${esTardanzaAhora() ? 'clock-history' : 'check-circle-fill'}`} />
-                    {esTardanzaAhora() ? 'Tardanza' : 'Puntual'}
-                  </span>
+              {/* Toggle modo */}
+              {!alumnoValidado && (
+                <div className="asis-mode-toggle">
+                  <button
+                    className={`asis-mode-btn${!modoQr ? ' active' : ''}`}
+                    onClick={() => activarModoQr(false)}
+                    type="button"
+                  >
+                    <i className="bi bi-keyboard" /> Código manual
+                  </button>
+                  <button
+                    className={`asis-mode-btn${modoQr ? ' active' : ''}`}
+                    onClick={() => activarModoQr(true)}
+                    type="button"
+                  >
+                    <i className="bi bi-qr-code-scan" /> Escanear QR
+                  </button>
                 </div>
-              </div>
-              <div className="asis-actions">
-                <button className="btn-teal" onClick={handleConfirmarAsistencia} disabled={procesando}>
-                  {procesando
-                    ? <><div className="asis-spinner" /> Registrando...</>
-                    : <><i className="bi bi-check-lg" /> Confirmar ingreso</>}
-                </button>
-                <button className="btn-outline" onClick={() => { setAlumnoValidado(null); setDni(''); setTimeout(() => dniInputRef.current?.focus(), 100) }}>
-                  <i className="bi bi-x" /> Cancelar
-                </button>
-              </div>
+              )}
+
+              {/* Modo QR: escáner activo */}
+              {modoQr && !alumnoValidado && (
+                <>
+                  <QrScanner active={qrActivo} onScan={validarCodigo} />
+                  {procesando ? (
+                    <p className="qr-hint"><div className="asis-spinner" style={{ borderTopColor: 'var(--teal)', borderColor: 'rgba(10,147,150,.25)' }} /> Buscando alumno...</p>
+                  ) : (
+                    <p className="qr-hint">
+                      <i className="bi bi-camera-fill" style={{ color: 'var(--teal)' }} />
+                      Apunta la cámara al QR del carnet del alumno
+                    </p>
+                  )}
+                </>
+              )}
+
+              {/* Modo manual: input */}
+              {!modoQr && !alumnoValidado && (
+                <form onSubmit={handleValidar}>
+                  <label className="asis-label">Código o DNI del Alumno</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <input
+                      ref={dniInputRef}
+                      className="asis-input"
+                      value={dni}
+                      onChange={e => setDni(e.target.value)}
+                      placeholder="Ej: CEC-001 o 74859612"
+                      style={{ flex: 1 }}
+                    />
+                    <button className="btn-teal" type="submit" disabled={procesando || !dni.trim()}>
+                      {procesando
+                        ? <><div className="asis-spinner" /> Buscando...</>
+                        : <><i className="bi bi-search" /> Validar</>}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 12, color: '#6c757d', marginTop: 10, marginBottom: 0 }}>
+                    <i className="bi bi-info-circle" style={{ marginRight: 5 }} />
+                    Ingresa el código y presiona <strong>Enter</strong> o Validar.
+                  </p>
+                </form>
+              )}
+
+              {/* Tarjeta alumno encontrado */}
+              {alumnoValidado && (
+                <>
+                  <div className="alumno-card">
+                    {alumnoValidado.foto_url ? (
+                      <img
+                        src={alumnoValidado.foto_url}
+                        className="alumno-photo"
+                        alt={alumnoValidado.nombres}
+                        onError={e => { (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(alumnoValidado.nombres)}&background=0a9396&color=fff&size=90` }}
+                      />
+                    ) : (
+                      <div className="alumno-photo-placeholder">
+                        <i className="bi bi-person-fill" />
+                      </div>
+                    )}
+                    <div className="alumno-info">
+                      <div className="alumno-name">{alumnoValidado.nombres} {alumnoValidado.apellidos}</div>
+                      <div className="alumno-meta">
+                        <span className="alumno-chip"><i className="bi bi-qr-code" />{alumnoValidado.codigo}</span>
+                        {alumnoValidado.ciclo && (
+                          <span className="alumno-chip"><i className="bi bi-arrow-repeat" />{alumnoValidado.ciclo.nombres}</span>
+                        )}
+                      </div>
+                      <span className={`alumno-estado-badge ${esTardanzaAhora() ? 'alumno-estado-tardanza' : 'alumno-estado-puntual'}`}>
+                        <i className={`bi bi-${esTardanzaAhora() ? 'clock-history' : 'check-circle-fill'}`} />
+                        {esTardanzaAhora() ? 'Tardanza' : 'Puntual'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="asis-actions">
+                    <button className="btn-teal" onClick={handleConfirmarAsistencia} disabled={procesando}>
+                      {procesando
+                        ? <><div className="asis-spinner" /> Registrando...</>
+                        : <><i className="bi bi-check-lg" /> Confirmar ingreso</>}
+                    </button>
+                    {modoQr && !procesando && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+                        <Countdown seconds={4} onDone={handleConfirmarAsistencia} />
+                        Auto-confirma en...
+                      </div>
+                    )}
+                    <button className="btn-outline" onClick={() => {
+                      setAlumnoValidado(null)
+                      setDni('')
+                      if (modoQr) setTimeout(() => setQrActivo(true), 100)
+                      else setTimeout(() => dniInputRef.current?.focus(), 100)
+                    }}>
+                      <i className="bi bi-x" /> Cancelar
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
