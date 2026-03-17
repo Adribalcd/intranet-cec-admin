@@ -356,12 +356,14 @@ export function AdminAsistenciaView() {
     return now.getHours() * 60 + now.getMinutes() > 8 * 60 + 15
   }
 
-  // Lunes(1)–Sábado(6), 07:00–11:00
+  // Lunes(1)–Sábado(6), 07:00–11:00 | 20:00–24:00 (horario nocturno para pruebas)
   const esDentroHorarioRegistro = () => {
     const now = new Date()
     const dia = now.getDay()          // 0=Dom, 1=Lun, ..., 6=Sáb
     const min = now.getHours() * 60 + now.getMinutes()
-    return dia >= 1 && dia <= 6 && min >= 7 * 60 && min < 11 * 60
+    const horarioManana  = min >= 7 * 60 && min < 11 * 60
+    const horarioNocturno = min >= 20 * 60 && min < 24 * 60
+    return dia >= 1 && dia <= 6 && (horarioManana || horarioNocturno)
   }
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#0a9396' }}>Cargando módulo de asistencia...</div>
@@ -399,6 +401,10 @@ export function AdminAsistenciaView() {
         <div className="asis-schedule-item">
           <span>Después de {HORA_FIN_PUNTUAL}:</span>
           <span className="asis-schedule-badge asis-badge-tardanza">Tardanza automática</span>
+        </div>
+        <div className="asis-schedule-item" style={{ opacity: 0.7 }}>
+          <i className="bi bi-moon-fill" style={{ fontSize: 13 }} />
+          <span>20:00 – 24:00 (pruebas)</span>
         </div>
       </div>
 
@@ -444,7 +450,7 @@ export function AdminAsistenciaView() {
               </p>
               <p style={{ fontSize: 12, color: '#adb5bd', marginTop: 14 }}>
                 <i className="bi bi-info-circle" style={{ marginRight: 5 }} />
-                Horario disponible: <strong>Lunes a Sábado, 07:00 – 11:00</strong>
+                Horario disponible: <strong>Lunes a Sábado, 07:00–11:00</strong> y <strong>20:00–24:00</strong>
               </p>
             </div>
           ) : (
