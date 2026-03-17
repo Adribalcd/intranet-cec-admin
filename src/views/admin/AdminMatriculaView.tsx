@@ -177,7 +177,28 @@ interface VocProps {
 function CamposVocacional({ univ, area, carrera, onChange }: VocProps) {
   const carreras = getCarrerasPorUniv(univ, area)
   const esSM = univ === 'San Marcos'
-  const [otroTexto, setOtroTexto] = useState('')
+  const esOtra = univ === 'Otra'
+  const tieneListado = univ === 'San Marcos' || univ === 'UNI'
+
+  // Modo libre: si la carrera actual no está en el listado (y no está vacía)
+  const [modoLibre, setModoLibre] = useState(
+    tieneListado && carrera !== '' && !carreras.includes(carrera)
+  )
+
+  const handleSelectCarrera = (val: string) => {
+    if (val === '__otro__') {
+      setModoLibre(true)
+      onChange({ carreraPref: '' })
+    } else {
+      setModoLibre(false)
+      onChange({ carreraPref: val })
+    }
+  }
+
+  const handleUnivChange = (val: string) => {
+    setModoLibre(false)
+    onChange({ univMeta: val, area: '', carreraPref: '' })
+  }
 
   return (
     <div style={{ background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
@@ -187,7 +208,7 @@ function CamposVocacional({ univ, area, carrera, onChange }: VocProps) {
       <div className="mat-form-row" style={{ marginBottom: esSM ? 12 : 0 }}>
         <div className="mat-field">
           <label>Universidad objetivo</label>
-          <select value={univ} onChange={e => { onChange({ univMeta: e.target.value, area: '', carreraPref: '' }); setOtroTexto('') }}>
+          <select value={univ} onChange={e => handleUnivChange(e.target.value)}>
             <option value="Por definir">Por definir</option>
             <option value="San Marcos">San Marcos (UNMSM)</option>
             <option value="UNI">UNI</option>
@@ -206,24 +227,34 @@ function CamposVocacional({ univ, area, carrera, onChange }: VocProps) {
           </div>
         )}
       </div>
-      {(univ === 'San Marcos' || univ === 'UNI') && (
+
+      {/* Carrera: listado para SM/UNI, texto libre para Otra */}
+      {(tieneListado || esOtra) && (
         <div className="mat-field">
           <label>Carrera preferida</label>
-          <select value={carrera === otroTexto && carrera !== '' ? '__otro__' : carrera} onChange={e => {
-            if (e.target.value === '__otro__') { onChange({ carreraPref: '' }); setOtroTexto('') }
-            else { onChange({ carreraPref: e.target.value }); setOtroTexto('') }
-          }}>
-            <option value="">— Por definir —</option>
-            {carreras.map(c => <option key={c} value={c}>{c}</option>)}
-            <option value="__otro__">Otra (ingresar manualmente)</option>
-          </select>
-          {(carrera === '__otro__' || (carrera !== '' && !carreras.includes(carrera) && carrera !== '__otro__')) && (
+          {esOtra ? (
             <input
-              style={{ marginTop: 8, width: '100%', padding: 10, border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 13 }}
-              placeholder="Escribe la carrera..."
-              value={otroTexto}
-              onChange={e => { setOtroTexto(e.target.value); onChange({ carreraPref: e.target.value }) }}
+              style={{ padding: 10, border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 13 }}
+              placeholder="Escribe la carrera o institución..."
+              value={carrera}
+              onChange={e => onChange({ carreraPref: e.target.value })}
             />
+          ) : (
+            <>
+              <select value={modoLibre ? '__otro__' : carrera} onChange={e => handleSelectCarrera(e.target.value)}>
+                <option value="">— Por definir —</option>
+                {carreras.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__otro__">Otra (ingresar manualmente)</option>
+              </select>
+              {modoLibre && (
+                <input
+                  style={{ marginTop: 8, padding: 10, border: '1.5px solid #e2e8f0', borderRadius: 9, fontSize: 13 }}
+                  placeholder="Escribe la carrera..."
+                  value={carrera}
+                  onChange={e => onChange({ carreraPref: e.target.value })}
+                />
+              )}
+            </>
           )}
         </div>
       )}
@@ -248,9 +279,11 @@ export function AdminMatriculaView() {
     dni: '', fechaNacimiento: '', celular: '', cicloId: '', esEscolar: false,
     univMeta: 'Por definir', area: '', carreraPref: '',
   })
-  const [editForm, setEditForm] = useState({
-    matriculaId: '', univMeta: 'Por definir', area: '', carreraPref: '',
-  })
+  const [editSearch, setEditSearch] = useState({ cicloId: '', codigo: '' })
+  const [editData, setEditData] = useState<{
+    matriculaId: number | null; alumnoNombre: string;
+    univMeta: string; area: string; carreraPref: string;
+  }>({ matriculaId: null, alumnoNombre: '', univMeta: 'Por definir', area: '', carreraPref: '' })
 
   const setNA = (patch: Partial<typeof nuevo>) => setNuevo(prev => ({ ...prev, ...patch }))
 
@@ -331,18 +364,39 @@ export function AdminMatriculaView() {
     } finally { setIsSubmitting(false) }
   }
 
-  const handleEditMatricula = async (e: React.FormEvent) => {
+  const handleBuscarMatricula = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editForm.matriculaId) return
+    if (!editSearch.cicloId || !editSearch.codigo) return
     setIsSubmitting(true)
     try {
-      await (adminApi as any).updateMatriculaInfo(Number(editForm.matriculaId), {
-        area: editForm.area || null,
-        carreraPref: cleanCarrera(editForm.carreraPref) || null,
-        univMeta: editForm.univMeta || null,
+      const res = await (adminApi as any).getMatriculaByAlumno(editSearch.codigo.trim(), Number(editSearch.cicloId))
+      const d = res.data
+      setEditData({
+        matriculaId: d.matriculaId,
+        alumnoNombre: d.alumnoNombre,
+        univMeta: d.universidad_meta || 'Por definir',
+        area: d.area || '',
+        carreraPref: d.carrera_preferida || '',
       })
-      setMsg({ type: 'success', text: `Matrícula #${editForm.matriculaId} actualizada correctamente.` })
-      setEditForm({ matriculaId: '', univMeta: 'Por definir', area: '', carreraPref: '' })
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.response?.data?.error || 'Alumno o matrícula no encontrada.' })
+      setEditData({ matriculaId: null, alumnoNombre: '', univMeta: 'Por definir', area: '', carreraPref: '' })
+    } finally { setIsSubmitting(false) }
+  }
+
+  const handleEditMatricula = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editData.matriculaId) return
+    setIsSubmitting(true)
+    try {
+      await (adminApi as any).updateMatriculaInfo(editData.matriculaId, {
+        area: editData.area || null,
+        carreraPref: cleanCarrera(editData.carreraPref) || null,
+        univMeta: editData.univMeta || null,
+      })
+      setMsg({ type: 'success', text: `Matrícula de ${editData.alumnoNombre} actualizada correctamente.` })
+      setEditData({ matriculaId: null, alumnoNombre: '', univMeta: 'Por definir', area: '', carreraPref: '' })
+      setEditSearch({ cicloId: '', codigo: '' })
     } catch (err: any) {
       setMsg({ type: 'error', text: err.response?.data?.error || 'Error al actualizar matrícula.' })
     } finally { setIsSubmitting(false) }
@@ -514,30 +568,47 @@ export function AdminMatriculaView() {
           <p className="mat-card-title" style={{ color: '#4c1d95' }}>Editar Área / Carrera de Matrícula Existente</p>
         </div>
         <div className="mat-card-body">
-          <p style={{ fontSize: 12, color: '#64748b', marginTop: 0, marginBottom: 16 }}>
-            Ingresa el ID de la matrícula para actualizar el área de postulación y/o la carrera preferida del alumno.
-            El ID se muestra en la tabla de alumnos matriculados.
-          </p>
-          <form onSubmit={handleEditMatricula}>
-            <div style={{ marginBottom: 12, maxWidth: 200 }}>
+          {/* Paso 1: buscar alumno */}
+          <form onSubmit={handleBuscarMatricula} style={{ marginBottom: 20 }}>
+            <div className="mat-form-row" style={{ alignItems: 'flex-end' }}>
               <div className="mat-field">
-                <label>ID Matrícula</label>
+                <label>Ciclo</label>
+                <select value={editSearch.cicloId} onChange={e => { setEditSearch(f => ({ ...f, cicloId: e.target.value })); setEditData({ matriculaId: null, alumnoNombre: '', univMeta: 'Por definir', area: '', carreraPref: '' }) }} required>
+                  <option value="">— Seleccione ciclo —</option>
+                  {ciclos.map(c => <option key={c.id} value={c.id}>{c.nombres}</option>)}
+                </select>
+              </div>
+              <div className="mat-field">
+                <label>Código / DNI del alumno</label>
                 <input
-                  type="number" min="1"
-                  value={editForm.matriculaId}
-                  onChange={e => setEditForm(f => ({ ...f, matriculaId: e.target.value }))}
-                  placeholder="Ej: 42" required
+                  placeholder="Ej: 72345678"
+                  value={editSearch.codigo}
+                  onChange={e => { setEditSearch(f => ({ ...f, codigo: e.target.value })); setEditData({ matriculaId: null, alumnoNombre: '', univMeta: 'Por definir', area: '', carreraPref: '' }) }}
+                  required
                 />
               </div>
+              <button type="submit" className="btn-violet" disabled={isSubmitting || !editSearch.cicloId || !editSearch.codigo}>
+                {isSubmitting ? <div className="spinner" /> : <><i className="bi bi-search" /> Buscar</>}
+              </button>
             </div>
-            <CamposVocacional
-              univ={editForm.univMeta} area={editForm.area} carrera={editForm.carreraPref}
-              onChange={p => setEditForm(prev => ({ ...prev, ...p }))}
-            />
-            <button type="submit" className="btn-violet" disabled={isSubmitting || !editForm.matriculaId}>
-              {isSubmitting ? <div className="spinner" /> : <><i className="bi bi-save" /> Guardar cambios</>}
-            </button>
           </form>
+
+          {/* Paso 2: editar si se encontró */}
+          {editData.matriculaId && (
+            <form onSubmit={handleEditMatricula}>
+              <div style={{ background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#4c1d95' }}>
+                <i className="bi bi-person-check-fill" style={{ marginRight: 8 }} />
+                <strong>{editData.alumnoNombre}</strong> — Matrícula #{editData.matriculaId}
+              </div>
+              <CamposVocacional
+                univ={editData.univMeta} area={editData.area} carrera={editData.carreraPref}
+                onChange={p => setEditData(prev => ({ ...prev, ...p }))}
+              />
+              <button type="submit" className="btn-violet" disabled={isSubmitting}>
+                {isSubmitting ? <div className="spinner" /> : <><i className="bi bi-save" /> Guardar cambios</>}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
