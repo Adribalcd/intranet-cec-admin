@@ -118,6 +118,14 @@ export const adminApi = {
       `${PREFIX}/alumno/${encodeURIComponent(codigo)}/restaurar-password`, {}
     )
   },
+  editarDatosAlumno(codigo: string, datos: Record<string, unknown>) {
+    return api.put(`${PREFIX}/alumno/${encodeURIComponent(codigo)}/datos`, datos)
+  },
+  reenviarCredenciales(codigo: string) {
+    return api.post<{ ok: boolean; mensaje: string }>(
+      `${PREFIX}/alumno/${encodeURIComponent(codigo)}/reenviar-credenciales`, {}
+    )
+  },
 
   // --- Asistencia
   registrarAsistencia(body: AsistenciaRegistroBody) {

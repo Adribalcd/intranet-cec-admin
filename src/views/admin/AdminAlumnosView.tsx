@@ -349,6 +349,14 @@ export function AdminAlumnosView() {
   const [confirmEliminar, setConfirmEliminar] = useState<{ alumno: AlumnoListItem } | null>(null)
   const [accionProcesando, setAccionProcesando] = useState(false)
 
+  // Editar alumno
+  const [editModal, setEditModal] = useState<AlumnoListItem | null>(null)
+  const [editForm, setEditForm] = useState<any>({})
+  const [editGuardando, setEditGuardando] = useState(false)
+
+  // Reenviar credenciales
+  const [reenviarCodigo, setReenviarCodigo] = useState<string | null>(null)
+
   // Load ciclos on mount, then try to load ciclo vigente by default
   useEffect(() => {
     adminApi.getCiclos()
@@ -433,6 +441,50 @@ export function AdminAlumnosView() {
       setError('Error al restaurar la contraseña.')
     } finally {
       setRestoringCodigo(null)
+    }
+  }
+
+  // ── Editar alumno ──
+  const abrirEditModal = (a: AlumnoListItem) => {
+    setEditModal(a)
+    setEditForm({
+      nombres:         a.nombres ?? '',
+      apellidos:       a.apellidos ?? '',
+      email:           (a as any).email_alumno ?? '',
+      celular:         a.celular ?? '',
+      dni:             (a as any).dni ?? '',
+      fechaNacimiento: (a as any).fecha_nacimiento ?? '',
+      esEscolar:       !!(a as any).es_escolar,
+    })
+  }
+
+  const handleGuardarEdicion = async () => {
+    if (!editModal?.codigo) return
+    setEditGuardando(true)
+    setError('')
+    try {
+      await (adminApi as any).editarDatosAlumno(editModal.codigo, editForm)
+      setSuccess(`Datos de ${editForm.nombres} ${editForm.apellidos} actualizados.`)
+      setEditModal(null)
+      cargarAlumnosPorCiclo(selectedCicloId)
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al guardar los cambios.')
+    } finally {
+      setEditGuardando(false)
+    }
+  }
+
+  // ── Reenviar credenciales ──
+  const handleReenviarCredenciales = async (codigo: string) => {
+    setReenviarCodigo(codigo)
+    setError('')
+    try {
+      const res = await (adminApi as any).reenviarCredenciales(codigo)
+      setSuccess(res.data.mensaje)
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al reenviar credenciales.')
+    } finally {
+      setReenviarCodigo(null)
     }
   }
 
@@ -705,6 +757,9 @@ export function AdminAlumnosView() {
                             <button className="btn-photo" onClick={() => abrirPhotoModal(a)}>
                               <i className="bi bi-camera-fill" /> Foto
                             </button>
+                            <button className="btn-restore" onClick={() => abrirEditModal(a)} title="Editar datos del alumno">
+                              <i className="bi bi-pencil-fill" /> Editar
+                            </button>
                             <button
                               className="btn-restore"
                               onClick={() => restaurarContrasena(a)}
@@ -713,6 +768,15 @@ export function AdminAlumnosView() {
                             >
                               <i className="bi bi-key-fill" />
                               {restoringCodigo === a.codigo ? '...' : 'Clave'}
+                            </button>
+                            <button
+                              className="btn-restore"
+                              onClick={() => handleReenviarCredenciales(a.codigo!)}
+                              disabled={reenviarCodigo === a.codigo}
+                              title="Reenviar credenciales al correo del alumno"
+                            >
+                              <i className="bi bi-envelope-fill" />
+                              {reenviarCodigo === a.codigo ? '...' : 'Email'}
                             </button>
                             {selectedCicloId && (
                               <button
@@ -739,6 +803,50 @@ export function AdminAlumnosView() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Modal Editar Alumno ── */}
+      {editModal && (
+        <div className="modal-overlay" onClick={() => setEditModal(null)}>
+          <div className="modal-box" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header-cec">
+              <h5><i className="bi bi-pencil-fill me-2" />Editar datos del alumno</h5>
+              <button className="modal-close-btn" onClick={() => setEditModal(null)}><i className="bi bi-x-lg" /></button>
+            </div>
+            <div className="modal-body-cec" style={{ textAlign: 'left' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { label: 'Nombres', key: 'nombres' },
+                  { label: 'Apellidos', key: 'apellidos' },
+                  { label: 'Correo electrónico', key: 'email' },
+                  { label: 'Celular', key: 'celular' },
+                  { label: 'DNI', key: 'dni' },
+                  { label: 'Fecha de nacimiento', key: 'fechaNacimiento', type: 'date' },
+                ].map(f => (
+                  <div key={f.key} style={{ gridColumn: f.key === 'email' ? '1 / -1' : undefined }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#6c757d', marginBottom: 4 }}>{f.label}</label>
+                    <input
+                      type={f.type ?? 'text'}
+                      value={editForm[f.key] ?? ''}
+                      onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #dee2e6', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: '#fafafa' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!editForm.esEscolar} onChange={e => setEditForm({ ...editForm, esEscolar: e.target.checked })} />
+                Alumno de modalidad Escolar (10 cuotas × S/70)
+              </label>
+            </div>
+            <div className="modal-footer-cec">
+              <button className="btn-modal-secondary" onClick={() => setEditModal(null)}>Cancelar</button>
+              <button className="btn-modal-primary" onClick={handleGuardarEdicion} disabled={editGuardando}>
+                {editGuardando ? 'Guardando...' : <><i className="bi bi-check-lg" /> Guardar cambios</>}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
