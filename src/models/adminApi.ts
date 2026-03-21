@@ -244,7 +244,8 @@ export const adminApi = {
   // --- Config pagos por ciclo
   getConfigPagos(cicloId: number) { return api.get<any>(`${PREFIX}/ciclos/${cicloId}/config-pagos`) },
   upsertConfigPagos(cicloId: number, body: any) { return api.put<any>(`${PREFIX}/ciclos/${cicloId}/config-pagos`, body) },
-  ocultarPagosTodos() { return api.put<any>(`${PREFIX}/pagos/ocultar-todos`) },
+  getVisibilidadGlobal() { return api.get<any>(`${PREFIX}/pagos/visibilidad-global`) },
+  setVisibilidadGlobal(visible: boolean) { return api.put<any>(`${PREFIX}/pagos/visibilidad-global`, { visible }) },
 
   // --- Pagos online
   getPagosOnlinePendientes() { return api.get<any[]>(`${PREFIX}/pagos/pendientes-online`) },

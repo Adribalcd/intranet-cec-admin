@@ -74,12 +74,18 @@ export function AdminPagosView() {
 
   // Específicos para Tabs nuevos
   const [configPagos, setConfigPagos] = useState<any>(null)
+  const [visibilidadGlobal, setVisibilidadGlobal] = useState<any>(null)
+
+  const loadVisibilidadGlobal = () => {
+    adminApi.getVisibilidadGlobal().then(r => setVisibilidadGlobal(r.data)).catch(() => {})
+  }
 
   useEffect(() => {
     adminApi.getCiclos().then(r => {
       setCiclos(r.data)
       if (r.data.length) setCicloId(r.data[0].id)
     })
+    loadVisibilidadGlobal()
   }, [])
 
   const loadConceptos = useCallback(() => {
@@ -124,13 +130,17 @@ export function AdminPagosView() {
 
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
 
-  const ocultarTodos = async () => {
-    if (!confirm('¿Desactivar la visibilidad del módulo de pagos para TODOS los ciclos?\n\nLos alumnos dejarán de ver el módulo de pagos hasta que lo reactives ciclo por ciclo.')) return
+  const cambiarVisibilidadGlobal = async (visible: boolean) => {
+    const msg = visible
+      ? '¿Activar el módulo de pagos para TODOS los ciclos?\n\nLos alumnos podrán ver y consultar sus pagos.'
+      : '¿Ocultar el módulo de pagos para TODOS los ciclos?\n\nLos alumnos dejarán de ver el módulo hasta que lo reactives.'
+    if (!confirm(msg)) return
     try {
-      await adminApi.ocultarPagosTodos()
-      flash('Módulo de pagos ocultado para todos los ciclos')
+      await adminApi.setVisibilidadGlobal(visible)
+      flash(visible ? 'Módulo de pagos activado para todos los ciclos' : 'Módulo de pagos ocultado para todos los ciclos')
+      loadVisibilidadGlobal()
       if (tab === 3) loadConfigPagos()
-    } catch { flash('Error al ocultar pagos') }
+    } catch { flash('Error al cambiar visibilidad') }
   }
 
   // ── Concepto CRUD ──
@@ -222,15 +232,41 @@ export function AdminPagosView() {
 
   return (
     <div style={s.page}>
-      <div style={{ ...s.header, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={s.h1}><i className="bi bi-cash-stack" style={{ marginRight: 10, color: '#0a9396' }} />Gestión de Pagos</h1>
-          <p style={s.sub}>Conceptos de pago, registro y seguimiento por alumno</p>
-        </div>
-        <button style={{ padding: '8px 16px', background: '#fff3cd', color: '#856404', border: '1.5px solid #ffc107', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }} onClick={ocultarTodos}>
-          <i className="bi bi-eye-slash-fill" />Ocultar pagos a todos
-        </button>
+      <div style={s.header}>
+        <h1 style={s.h1}><i className="bi bi-cash-stack" style={{ marginRight: 10, color: '#0a9396' }} />Gestión de Pagos</h1>
+        <p style={s.sub}>Conceptos de pago, registro y seguimiento por alumno</p>
       </div>
+
+      {/* Banner de visibilidad global */}
+      {visibilidadGlobal && (
+        visibilidadGlobal.todos_ocultos ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: '#fff3cd', border: '1.5px solid #ffc107', borderRadius: 10, padding: '12px 18px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <i className="bi bi-eye-slash-fill" style={{ fontSize: 18, color: '#856404' }} />
+              <div>
+                <div style={{ fontWeight: 700, color: '#856404', fontSize: 14 }}>Módulo de pagos oculto para todos los alumnos</div>
+                <div style={{ fontSize: 12, color: '#a07800', marginTop: 2 }}>Ningún ciclo tiene el módulo de pagos visible actualmente.</div>
+              </div>
+            </div>
+            <button style={{ ...s.btnPrimary, background: '#0a9396', whiteSpace: 'nowrap' as const }} onClick={() => cambiarVisibilidadGlobal(true)}>
+              <i className="bi bi-eye-fill" />Activar para todos
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: '#e8f5f6', border: '1.5px solid #a8d8dc', borderRadius: 10, padding: '12px 18px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <i className="bi bi-eye-fill" style={{ fontSize: 18, color: '#0a9396' }} />
+              <div>
+                <div style={{ fontWeight: 700, color: '#0d4f5c', fontSize: 14 }}>Módulo de pagos visible</div>
+                <div style={{ fontSize: 12, color: '#4a7c85', marginTop: 2 }}>{visibilidadGlobal.visibles} de {visibilidadGlobal.total} ciclo(s) con pagos visibles para alumnos.</div>
+              </div>
+            </div>
+            <button style={{ padding: '8px 16px', background: '#fff3cd', color: '#856404', border: '1.5px solid #ffc107', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' as const }} onClick={() => cambiarVisibilidadGlobal(false)}>
+              <i className="bi bi-eye-slash-fill" />Ocultar para todos
+            </button>
+          </div>
+        )
+      )}
 
       {msg && <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 8, padding: '10px 16px', marginBottom: 16, color: '#1b5e20', fontSize: 13 }}>{msg}</div>}
 
