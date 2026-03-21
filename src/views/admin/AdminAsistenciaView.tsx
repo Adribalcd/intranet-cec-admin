@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx'
 const todayISO = () => new Date().toISOString().split('T')[0]
 
 const HORA_INICIO = '07:00'
-const HORA_FIN_PUNTUAL = '08:15'
+const HORA_FIN_PUNTUAL = '08:20'
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -120,21 +120,28 @@ export function AdminAsistenciaView() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Siempre mantener foco en el input cuando estamos en tab registro y no hay alumno validado
   useEffect(() => {
-    if (tab === 'registro') {
-      setTimeout(() => dniInputRef.current?.focus(), 100)
+    if (tab === 'registro' && !alumnoValidado) {
+      setTimeout(() => dniInputRef.current?.focus(), 80)
     }
-  }, [tab])
+  }, [tab, alumnoValidado])
+
+  // Lector de código de barras: al llegar a 8 dígitos, disparar búsqueda automáticamente
+  useEffect(() => {
+    if (tab === 'registro' && !alumnoValidado && dni.length === 8 && /^\d+$/.test(dni)) {
+      handleValidarAuto()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dni])
 
   const limpiarAlertas = () => { setError(''); setSuccess('') }
 
-  const handleValidar = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const buscarAlumno = async (codigo: string) => {
     limpiarAlertas()
-    if (!dni.trim()) return
     setProcesando(true)
     try {
-      const res = await adminApi.getAlumno(dni.trim())
+      const res = await adminApi.getAlumno(codigo.trim())
       const data = res.data as any
       setAlumnoValidado({
         nombres:   data.nombres,
@@ -145,10 +152,22 @@ export function AdminAsistenciaView() {
       })
     } catch {
       setError('Alumno no encontrado. Verifica el código o DNI.')
-      dniInputRef.current?.focus()
+      setDni('')
+      setTimeout(() => dniInputRef.current?.focus(), 80)
     } finally {
       setProcesando(false)
     }
+  }
+
+  const handleValidar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!dni.trim() || procesando) return
+    await buscarAlumno(dni)
+  }
+
+  const handleValidarAuto = async () => {
+    if (procesando) return
+    await buscarAlumno(dni)
   }
 
   const handleConfirmarAsistencia = async () => {
@@ -161,12 +180,11 @@ export function AdminAsistenciaView() {
       const estadoFinal = data.estado as string
       setSuccess(
         estadoFinal === 'Tardanza'
-          ? `Tardanza registrada para ${alumnoValidado.nombres} — llegó fuera del horario puntual (07:00–08:15).`
-          : `Asistencia registrada: ${alumnoValidado.nombres} llegó a tiempo.`
+          ? `Tardanza — ${alumnoValidado.apellidos}, ${alumnoValidado.nombres} (fuera del horario puntual 07:00–08:20).`
+          : `Presente — ${alumnoValidado.apellidos}, ${alumnoValidado.nombres} llegó a tiempo.`
       )
       setAlumnoValidado(null)
       setDni('')
-      setTimeout(() => dniInputRef.current?.focus(), 200)
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Error al registrar asistencia.'
       setError(msg)
@@ -252,13 +270,7 @@ export function AdminAsistenciaView() {
     return now.getHours() * 60 + now.getMinutes() > 8 * 60 + 15
   }
 
-  // Lunes(1)–Sábado(6), 07:00–11:00
-  const esDentroHorarioRegistro = () => {
-    const now = new Date()
-    const dia = now.getDay()          // 0=Dom, 1=Lun, ..., 6=Sáb
-    const min = now.getHours() * 60 + now.getMinutes()
-    return dia >= 1 && dia <= 6 && min >= 7 * 60 && min < 11 * 60
-  }
+  const esDomingoHoy = () => new Date().getDay() === 0
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#0a9396' }}>Cargando módulo de asistencia...</div>
 
@@ -284,7 +296,7 @@ export function AdminAsistenciaView() {
       <div className="asis-schedule-banner">
         <div className="asis-schedule-item">
           <i className="bi bi-calendar3" style={{ fontSize: 18 }} />
-          <span>Lunes a Sábado</span>
+          <span>Registro activo <strong>Lunes a Sábado</strong> — todo el día</span>
         </div>
         <div style={{ width: 1, height: 24, background: 'rgba(10,147,150,.3)' }} />
         <div className="asis-schedule-item">
@@ -320,30 +332,7 @@ export function AdminAsistenciaView() {
       {/* TAB: REGISTRO */}
       {tab === 'registro' && (
         <div className="asis-card">
-          {!esDentroHorarioRegistro() ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%',
-                background: 'linear-gradient(135deg,#fef3c7,#fde68a)',
-                border: '2px solid #fcd34d',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 28, marginBottom: 16,
-              }}>
-                <i className="bi bi-clock-history" style={{ color: '#92400e' }} />
-              </div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
-                Registro de asistencia no disponible
-              </p>
-              <p style={{ fontSize: 13, color: '#6c757d', maxWidth: 380, margin: '0 auto' }}>
-                No es posible registrar asistencia para el día de hoy.<br />
-                Si desea registrar asistencia contactar con soporte.
-              </p>
-              <p style={{ fontSize: 12, color: '#adb5bd', marginTop: 14 }}>
-                <i className="bi bi-info-circle" style={{ marginRight: 5 }} />
-                Horario disponible: <strong>Lunes a Sábado, 07:00 – 11:00</strong>
-              </p>
-            </div>
-          ) : !alumnoValidado ? (
+          {!alumnoValidado ? (
             <form onSubmit={handleValidar}>
               <label className="asis-label">Código o DNI del Alumno</label>
               <div style={{ display: 'flex', gap: 10, marginBottom: 0 }}>
@@ -362,8 +351,8 @@ export function AdminAsistenciaView() {
                 </button>
               </div>
               <p style={{ fontSize: 12, color: '#6c757d', marginTop: 10, marginBottom: 0 }}>
-                <i className="bi bi-info-circle" style={{ marginRight: 5 }} />
-                Ingresa el código del alumno y presiona <strong>Enter</strong> o el botón Validar.
+                <i className="bi bi-upc-scan" style={{ marginRight: 5 }} />
+                Usa el lector de códigos de barras o escribe el código. Con <strong>8 dígitos</strong> se valida automáticamente.
               </p>
             </form>
           ) : (
