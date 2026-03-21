@@ -392,7 +392,7 @@ export function AdminPagosView() {
               {filteredAlumnos.length === 0 && <p style={{ padding: 14, color: '#6c8a91', fontSize: 12 }}>Sin resultados</p>}
               {filteredAlumnos.map(a => (
                 <div key={a.id} style={selectedAlumno?.id === a.id ? s.alumnoItemActive : s.alumnoItem} onClick={() => setSelectedAlumno(a)}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0d4f5c' }}>{a.nombres} {a.apellidos}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0d4f5c' }}>{[a.nombres, a.apellidos].filter(Boolean).join(' ')}</div>
                   <div style={{ fontSize: 11, color: '#6c8a91' }}>{a.codigo}</div>
                   {a.suspendido && <span style={{ ...s.badge, background: '#ffe0e0', color: '#c0392b', fontSize: 10 }}>SUSPENDIDO</span>}
                 </div>
@@ -408,7 +408,7 @@ export function AdminPagosView() {
               <>
                 <div style={{ ...s.row, marginBottom: 16, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 16, color: '#0d4f5c' }}>{selectedAlumno.nombres} {selectedAlumno.apellidos}</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, color: '#0d4f5c' }}>{[selectedAlumno.nombres, selectedAlumno.apellidos].filter(Boolean).join(' ')}</div>
                     <div style={{ fontSize: 12, color: '#6c8a91' }}>{selectedAlumno.codigo}</div>
                   </div>
                   <button
@@ -472,7 +472,7 @@ export function AdminPagosView() {
                 {resumen.alumnos.map((row: any) => (
                   <tr key={row.alumno.id}>
                     <td style={s.td}>
-                      <span style={{ fontWeight: 600 }}>{row.alumno.nombres} {row.alumno.apellidos}</span>
+                      <span style={{ fontWeight: 600 }}>{[row.alumno.nombres, row.alumno.apellidos].filter(Boolean).join(' ')}</span>
                       {row.alumno.suspendido && <span style={{ ...s.badge, background: '#ffe0e0', color: '#c0392b', fontSize: 10, marginLeft: 6 }}>SUSP</span>}
                     </td>
                     <td style={s.td}>{row.alumno.codigo}</td>
