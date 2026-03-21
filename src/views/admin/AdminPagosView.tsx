@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '../../models/adminApi'
 
-const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const CUOTAS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 const TIPO_LABELS: Record<string, string> = {
   mensualidad: 'Mensualidad', matricula: 'Matrícula',
@@ -42,7 +41,7 @@ const s: Record<string, React.CSSProperties> = {
   searchBox: { padding: '10px 14px', borderBottom: '1px solid #e0eef0' },
 }
 
-const emptyConcepto = { tipo: 'mensualidad', descripcion: '', mes: '', anio: '', monto_opcion_1: '', etiqueta_opcion_1: 'Tarifa regular', monto_opcion_2: '', etiqueta_opcion_2: 'Tarifa especial', fecha_vencimiento: '', orden: 0 }
+const emptyConcepto = { tipo: 'mensualidad', descripcion: '', numero_cuota: '', anio: '', monto_opcion_1: '', etiqueta_opcion_1: 'Tarifa regular', monto_opcion_2: '', etiqueta_opcion_2: 'Tarifa especial', fecha_vencimiento: '', orden: 0 }
 const emptyPago = { alumno_id: '', concepto_id: '', monto_pagado: '', opcion_pago: 'opcion_1', metodo_pago: 'Yape', fecha_pago: new Date().toISOString().slice(0, 10), visible_alumno: false, observaciones: '', numero_operacion: '', codigo_recibo: '' }
 
 export function AdminPagosView() {
@@ -145,12 +144,12 @@ export function AdminPagosView() {
 
   // ── Concepto CRUD ──
   const openCreateConcepto = () => { setEditConcepto(null); setConceptoForm({ ...emptyConcepto }); setShowConceptoModal(true) }
-  const openEditConcepto = (c: any) => { setEditConcepto(c); setConceptoForm({ tipo: c.tipo, descripcion: c.descripcion, mes: c.mes ?? '', anio: c.anio ?? '', monto_opcion_1: c.monto_opcion_1, etiqueta_opcion_1: c.etiqueta_opcion_1, monto_opcion_2: c.monto_opcion_2 ?? '', etiqueta_opcion_2: c.etiqueta_opcion_2 ?? '', fecha_vencimiento: c.fecha_vencimiento ?? '', orden: c.orden }); setShowConceptoModal(true) }
+  const openEditConcepto = (c: any) => { setEditConcepto(c); setConceptoForm({ tipo: c.tipo, descripcion: c.descripcion, numero_cuota: c.numero_cuota ?? '', anio: c.anio ?? '', monto_opcion_1: c.monto_opcion_1, etiqueta_opcion_1: c.etiqueta_opcion_1, monto_opcion_2: c.monto_opcion_2 ?? '', etiqueta_opcion_2: c.etiqueta_opcion_2 ?? '', fecha_vencimiento: c.fecha_vencimiento ?? '', orden: c.orden }); setShowConceptoModal(true) }
 
   const saveConcepto = async () => {
     if (!cicloId) return
     const body: any = { ...conceptoForm }
-    if (!body.mes) delete body.mes
+    if (!body.numero_cuota) delete body.numero_cuota
     if (!body.anio) delete body.anio
     if (!body.monto_opcion_2) { body.monto_opcion_2 = null; body.etiqueta_opcion_2 = null }
     if (!body.fecha_vencimiento) delete body.fecha_vencimiento
@@ -345,7 +344,7 @@ export function AdminPagosView() {
                 <tr>
                   <th style={s.th}>Tipo</th>
                   <th style={s.th}>Descripción</th>
-                  <th style={s.th}>Mes/Año</th>
+                  <th style={s.th}>N° Cuota</th>
                   <th style={s.th}>Tarifa A</th>
                   <th style={s.th}>Tarifa B</th>
                   <th style={s.th}>Vencimiento</th>
@@ -362,7 +361,7 @@ export function AdminPagosView() {
                       </span>
                     </td>
                     <td style={s.td}>{c.descripcion}</td>
-                    <td style={s.td}>{c.mes ? `${MESES[c.mes]} ${c.anio ?? ''}` : '—'}</td>
+                    <td style={s.td}>{c.numero_cuota ? `Cuota ${c.numero_cuota}` : '—'}</td>
                     <td style={s.td}><strong>S/ {Number(c.monto_opcion_1).toFixed(2)}</strong><br /><span style={{ fontSize: 11, color: '#6c8a91' }}>{c.etiqueta_opcion_1}</span></td>
                     <td style={s.td}>{c.monto_opcion_2 ? <><strong>S/ {Number(c.monto_opcion_2).toFixed(2)}</strong><br /><span style={{ fontSize: 11, color: '#6c8a91' }}>{c.etiqueta_opcion_2}</span></> : <span style={{ color: '#ccc' }}>—</span>}</td>
                     <td style={s.td}>{c.fecha_vencimiento ? <span style={{ color: isVencido(c) ? '#c0392b' : '#0d4f5c' }}>{c.fecha_vencimiento}</span> : '—'}</td>
@@ -579,10 +578,10 @@ export function AdminPagosView() {
             </div>
             <div style={{ ...s.row, marginBottom: 16 }}>
               <div style={{ flex: 1 }}>
-                <div style={s.label}>Mes</div>
-                <select style={s.input} value={conceptoForm.mes} onChange={e => setConceptoForm((f: any) => ({ ...f, mes: e.target.value }))}>
-                  <option value="">— Sin mes —</option>
-                  {MESES.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                <div style={s.label}>N° Cuota</div>
+                <select style={s.input} value={conceptoForm.numero_cuota} onChange={e => setConceptoForm((f: any) => ({ ...f, numero_cuota: e.target.value }))}>
+                  <option value="">— Sin cuota —</option>
+                  {CUOTAS.map(n => <option key={n} value={n}>Cuota {n}</option>)}
                 </select>
               </div>
               <div style={{ flex: 1 }}>
