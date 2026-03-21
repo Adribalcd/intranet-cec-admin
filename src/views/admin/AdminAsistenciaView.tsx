@@ -384,16 +384,26 @@ export function AdminAsistenciaView() {
                   </span>
                 </div>
               </div>
-              <div className="asis-actions">
-                <button className="btn-teal" onClick={handleConfirmarAsistencia} disabled={procesando}>
-                  {procesando
-                    ? <><div className="asis-spinner" /> Registrando...</>
-                    : <><i className="bi bi-check-lg" /> Confirmar ingreso</>}
-                </button>
-                <button className="btn-outline" onClick={() => { setAlumnoValidado(null); setDni(''); setTimeout(() => dniInputRef.current?.focus(), 100) }}>
-                  <i className="bi bi-x" /> Cancelar
-                </button>
-              </div>
+              {esDomingoHoy() ? (
+                <div className="asis-alert" style={{ background: '#fef9ec', border: '1px solid #fcd34d', color: '#92400e', marginTop: 4 }}>
+                  <i className="bi bi-calendar-x-fill" />
+                  <span>Hoy es domingo — solo se permite verificar identidad, no se registra asistencia.</span>
+                  <button className="btn-outline" style={{ marginLeft: 'auto' }} onClick={() => { setAlumnoValidado(null); setDni(''); setTimeout(() => dniInputRef.current?.focus(), 100) }}>
+                    <i className="bi bi-x" /> Nuevo
+                  </button>
+                </div>
+              ) : (
+                <div className="asis-actions">
+                  <button className="btn-teal" onClick={handleConfirmarAsistencia} disabled={procesando}>
+                    {procesando
+                      ? <><div className="asis-spinner" /> Registrando...</>
+                      : <><i className="bi bi-check-lg" /> Confirmar ingreso</>}
+                  </button>
+                  <button className="btn-outline" onClick={() => { setAlumnoValidado(null); setDni(''); setTimeout(() => dniInputRef.current?.focus(), 100) }}>
+                    <i className="bi bi-x" /> Cancelar
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
