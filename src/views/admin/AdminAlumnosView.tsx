@@ -488,6 +488,26 @@ export function AdminAlumnosView() {
     }
   }
 
+  // ── WhatsApp credenciales ──
+  const [waCodigo, setWaCodigo] = useState<string | null>(null)
+
+  const handleCredencialesWhatsapp = async (codigo: string) => {
+    setWaCodigo(codigo)
+    setError('')
+    try {
+      const res = await (adminApi as any).credencialesWhatsapp(codigo)
+      const { mensaje, telefono } = res.data
+      const url = telefono
+        ? `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`
+        : `https://wa.me/?text=${encodeURIComponent(mensaje)}`
+      window.open(url, '_blank')
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al obtener credenciales WhatsApp.')
+    } finally {
+      setWaCodigo(null)
+    }
+  }
+
   // ── QR ──
   const verQr = (codigo: string) => {
     setError('')
@@ -777,6 +797,16 @@ export function AdminAlumnosView() {
                             >
                               <i className="bi bi-envelope-fill" />
                               {reenviarCodigo === a.codigo ? '...' : 'Email'}
+                            </button>
+                            <button
+                              className="btn-restore"
+                              onClick={() => handleCredencialesWhatsapp(a.codigo!)}
+                              disabled={waCodigo === a.codigo}
+                              title="Enviar credenciales por WhatsApp"
+                              style={{ background: '#25d366', color: 'white', borderColor: '#25d366' }}
+                            >
+                              <i className="bi bi-whatsapp" />
+                              {waCodigo === a.codigo ? '...' : 'WA'}
                             </button>
                             {selectedCicloId && (
                               <button

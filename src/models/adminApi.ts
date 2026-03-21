@@ -126,6 +126,11 @@ export const adminApi = {
       `${PREFIX}/alumno/${encodeURIComponent(codigo)}/reenviar-credenciales`, {}
     )
   },
+  credencialesWhatsapp(codigo: string) {
+    return api.post<{ ok: boolean; mensaje: string; telefono: string | null; nombre: string }>(
+      `${PREFIX}/alumno/${encodeURIComponent(codigo)}/credenciales-whatsapp`, {}
+    )
+  },
 
   // --- Asistencia
   registrarAsistencia(body: AsistenciaRegistroBody) {
