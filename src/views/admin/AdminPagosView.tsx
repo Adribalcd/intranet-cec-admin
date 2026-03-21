@@ -124,6 +124,15 @@ export function AdminPagosView() {
 
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
 
+  const ocultarTodos = async () => {
+    if (!confirm('¿Desactivar la visibilidad del módulo de pagos para TODOS los ciclos?\n\nLos alumnos dejarán de ver el módulo de pagos hasta que lo reactives ciclo por ciclo.')) return
+    try {
+      await adminApi.ocultarPagosTodos()
+      flash('Módulo de pagos ocultado para todos los ciclos')
+      if (tab === 3) loadConfigPagos()
+    } catch { flash('Error al ocultar pagos') }
+  }
+
   // ── Concepto CRUD ──
   const openCreateConcepto = () => { setEditConcepto(null); setConceptoForm({ ...emptyConcepto }); setShowConceptoModal(true) }
   const openEditConcepto = (c: any) => { setEditConcepto(c); setConceptoForm({ tipo: c.tipo, descripcion: c.descripcion, mes: c.mes ?? '', anio: c.anio ?? '', monto_opcion_1: c.monto_opcion_1, etiqueta_opcion_1: c.etiqueta_opcion_1, monto_opcion_2: c.monto_opcion_2 ?? '', etiqueta_opcion_2: c.etiqueta_opcion_2 ?? '', fecha_vencimiento: c.fecha_vencimiento ?? '', orden: c.orden }); setShowConceptoModal(true) }
@@ -213,9 +222,14 @@ export function AdminPagosView() {
 
   return (
     <div style={s.page}>
-      <div style={s.header}>
-        <h1 style={s.h1}><i className="bi bi-cash-stack" style={{ marginRight: 10, color: '#0a9396' }} />Gestión de Pagos</h1>
-        <p style={s.sub}>Conceptos de pago, registro y seguimiento por alumno</p>
+      <div style={{ ...s.header, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={s.h1}><i className="bi bi-cash-stack" style={{ marginRight: 10, color: '#0a9396' }} />Gestión de Pagos</h1>
+          <p style={s.sub}>Conceptos de pago, registro y seguimiento por alumno</p>
+        </div>
+        <button style={{ padding: '8px 16px', background: '#fff3cd', color: '#856404', border: '1.5px solid #ffc107', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }} onClick={ocultarTodos}>
+          <i className="bi bi-eye-slash-fill" />Ocultar pagos a todos
+        </button>
       </div>
 
       {msg && <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 8, padding: '10px 16px', marginBottom: 16, color: '#1b5e20', fontSize: 13 }}>{msg}</div>}
