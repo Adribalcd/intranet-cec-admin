@@ -229,6 +229,47 @@ export function AdminPagosView() {
   const hoy = new Date()
   const isVencido = (c: any) => c.fecha_vencimiento && new Date(c.fecha_vencimiento) < hoy
 
+  const renderConceptoCard = (c: any) => {
+    const pago = c.Pagos?.[0] ?? null
+    const vencido = !pago && isVencido(c)
+    return (
+      <div key={c.id} style={{ borderRadius: 10, border: `1.5px solid ${pago ? '#a5d6a7' : vencido ? '#fbc4c4' : '#e0eef0'}`, background: pago ? '#f9fffe' : vencido ? '#fff5f5' : 'white', padding: '12px 16px' }}>
+        <div style={{ ...s.row, justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontWeight: 600, fontSize: 14, color: '#0d4f5c' }}>{c.descripcion}</span>
+            <span style={{ marginLeft: 8, ...s.badge, background: pago ? '#e8f5e9' : vencido ? '#ffe0e0' : '#f0f7f8', color: pago ? '#27ae60' : vencido ? '#c0392b' : '#6c8a91' }}>
+              {pago ? 'Pagado' : vencido ? 'Vencido' : 'Pendiente'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+            {!pago && <button style={s.btnPrimary} onClick={() => openCreatePago(c)}><i className="bi bi-plus" /> Registrar</button>}
+            {pago && <>
+              <button style={{ ...s.btnSecondary, fontSize: 11 }} onClick={() => toggleVis(pago.id)} title={pago.visible_alumno ? 'Ocultar al alumno' : 'Mostrar al alumno'}>
+                <i className={`bi bi-eye${pago.visible_alumno ? '-slash' : ''}`} /> {pago.visible_alumno ? 'Visible' : 'Oculto'}
+              </button>
+              <button style={s.btnSecondary} onClick={() => openEditPago(c, pago)}><i className="bi bi-pencil" /></button>
+              <button style={s.btnDanger} onClick={() => deletePago(pago.id)}><i className="bi bi-trash" /></button>
+            </>}
+          </div>
+        </div>
+        {pago && (
+          <div style={{ marginTop: 8, fontSize: 12, color: '#6c8a91', display: 'flex', gap: 16, flexWrap: 'wrap' as const }}>
+            <span><i className="bi bi-currency-dollar" /> S/ {Number(pago.monto_pagado).toFixed(2)}</span>
+            <span><i className="bi bi-credit-card" /> {pago.metodo_pago}</span>
+            <span><i className="bi bi-calendar-check" /> {pago.fecha_pago}</span>
+            {pago.numero_operacion && <span><i className="bi bi-hash" /> {pago.numero_operacion}</span>}
+          </div>
+        )}
+        {!pago && c.fecha_vencimiento && (
+          <div style={{ fontSize: 12, color: vencido ? '#c0392b' : '#6c8a91', marginTop: 4 }}>
+            Vence: {c.fecha_vencimiento} &nbsp;|&nbsp; S/ {Number(c.monto_opcion_1).toFixed(2)}
+            {c.monto_opcion_2 && ` / S/ ${Number(c.monto_opcion_2).toFixed(2)}`}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={s.page}>
       <div style={s.header}>
@@ -382,46 +423,20 @@ export function AdminPagosView() {
                   <p style={{ color: '#6c8a91', fontSize: 13 }}>No hay conceptos para este ciclo.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {alumnoConceptos.map((c: any) => {
-                      const pago = c.Pagos?.[0] ?? null
-                      const vencido = !pago && isVencido(c)
-                      return (
-                        <div key={c.id} style={{ borderRadius: 10, border: `1.5px solid ${pago ? '#a5d6a7' : vencido ? '#fbc4c4' : '#e0eef0'}`, background: pago ? '#f9fffe' : vencido ? '#fff5f5' : 'white', padding: '12px 16px' }}>
-                          <div style={{ ...s.row, justifyContent: 'space-between' }}>
-                            <div>
-                              <span style={{ fontWeight: 600, fontSize: 14, color: '#0d4f5c' }}>{c.descripcion}</span>
-                              <span style={{ marginLeft: 8, ...s.badge, background: pago ? '#e8f5e9' : vencido ? '#ffe0e0' : '#f0f7f8', color: pago ? '#27ae60' : vencido ? '#c0392b' : '#6c8a91' }}>
-                                {pago ? 'Pagado' : vencido ? 'Vencido' : 'Pendiente'}
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              {!pago && <button style={s.btnPrimary} onClick={() => openCreatePago(c)}><i className="bi bi-plus" /> Registrar</button>}
-                              {pago && <>
-                                <button style={{ ...s.btnSecondary, fontSize: 11 }} onClick={() => toggleVis(pago.id)} title={pago.visible_alumno ? 'Ocultar al alumno' : 'Mostrar al alumno'}>
-                                  <i className={`bi bi-eye${pago.visible_alumno ? '-slash' : ''}`} /> {pago.visible_alumno ? 'Visible' : 'Oculto'}
-                                </button>
-                                <button style={s.btnSecondary} onClick={() => openEditPago(c, pago)}><i className="bi bi-pencil" /></button>
-                                <button style={s.btnDanger} onClick={() => deletePago(pago.id)}><i className="bi bi-trash" /></button>
-                              </>}
-                            </div>
-                          </div>
-                          {pago && (
-                            <div style={{ marginTop: 8, fontSize: 12, color: '#6c8a91', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                              <span><i className="bi bi-currency-dollar" /> S/ {Number(pago.monto_pagado).toFixed(2)}</span>
-                              <span><i className="bi bi-credit-card" /> {pago.metodo_pago}</span>
-                              <span><i className="bi bi-calendar-check" /> {pago.fecha_pago}</span>
-                              {pago.numero_operacion && <span><i className="bi bi-hash" /> {pago.numero_operacion}</span>}
-                            </div>
-                          )}
-                          {!pago && c.fecha_vencimiento && (
-                            <div style={{ fontSize: 12, color: vencido ? '#c0392b' : '#6c8a91', marginTop: 4 }}>
-                              Vence: {c.fecha_vencimiento} &nbsp;|&nbsp; S/ {Number(c.monto_opcion_1).toFixed(2)}
-                              {c.monto_opcion_2 && ` / S/ ${Number(c.monto_opcion_2).toFixed(2)}`}
-                            </div>
-                          )}
+                    {/* Escolaridad — sección destacada */}
+                    {alumnoConceptos.some((c: any) => c.tipo === 'escolaridad') && (
+                      <div style={{ padding: '12px 14px', background: 'linear-gradient(135deg, #f8f0ff, #fff)', border: '2px solid #c7a0f0', borderRadius: 12, marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                          <i className="bi bi-mortarboard-fill" style={{ color: '#7c3aed', fontSize: 16 }} />
+                          <span style={{ fontWeight: 700, fontSize: 13, color: '#4c1d95', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Escolaridad</span>
                         </div>
-                      )
-                    })}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {alumnoConceptos.filter((c: any) => c.tipo === 'escolaridad').map(renderConceptoCard)}
+                        </div>
+                      </div>
+                    )}
+                    {/* Matrícula y mensualidades */}
+                    {alumnoConceptos.filter((c: any) => c.tipo !== 'escolaridad').map(renderConceptoCard)}
                   </div>
                 )}
               </>
