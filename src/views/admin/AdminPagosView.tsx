@@ -118,9 +118,13 @@ export function AdminPagosView() {
     if (tab === 3) loadConfigPagos()
   }, [cicloId, tab, loadConceptos, loadAlumnos, loadResumen, loadConfigPagos])
 
-  const loadPagosAlumno = useCallback((alumno: any) => {
+  const loadPagosAlumno = useCallback(async (alumno: any) => {
     if (!cicloId || !alumno) return
-    adminApi.getPagosAlumno(alumno.id, cicloId).then(r => setAlumnoConceptos(r.data))
+    const [cicloRes, escRes] = await Promise.all([
+      adminApi.getPagosAlumno(alumno.id, cicloId),
+      alumno.es_escolar ? adminApi.getPagosEscolaridadAlumno(alumno.id) : Promise.resolve({ data: [] }),
+    ])
+    setAlumnoConceptos([...cicloRes.data, ...escRes.data])
   }, [cicloId])
 
   useEffect(() => {

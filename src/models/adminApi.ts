@@ -256,6 +256,7 @@ export const adminApi = {
   deleteConceptoPago(id: number) { return api.delete(`${PREFIX}/concepto-pago/${id}`) },
   getResumenPagosCiclo(cicloId: number) { return api.get<any>(`${PREFIX}/ciclos/${cicloId}/resumen-pagos`) },
   getPagosAlumno(alumnoId: number, cicloId: number) { return api.get<any[]>(`${PREFIX}/alumnos/${alumnoId}/pagos/${cicloId}`) },
+  getPagosEscolaridadAlumno(alumnoId: number) { return api.get<any[]>(`${PREFIX}/alumnos/${alumnoId}/escolaridad`) },
   registrarPago(body: any) { return api.post<any>(`${PREFIX}/pago`, body) },
   updatePago(id: number, body: any) { return api.put<any>(`${PREFIX}/pago/${id}`, body) },
   deletePago(id: number) { return api.delete(`${PREFIX}/pago/${id}`) },
