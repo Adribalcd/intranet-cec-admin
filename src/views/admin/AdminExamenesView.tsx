@@ -1235,12 +1235,20 @@ export function AdminExamenesView() {
                     Agrega filas para ingresar notas.
                   </div>
                 ) : (
+                  (() => {
+                    const cursoColW = 130
+                    const gridCursos = examenCursos.length > 0 && usaBuenasMalas
+                      ? `190px repeat(${examenCursos.length}, ${cursoColW}px) 36px`
+                      : undefined
+                    return (
                   <div className="calif-scroll-wrap">
                     {/* Cabecera de columnas */}
-                    <div className="calif-scroll-header">
+                    <div className="calif-scroll-header" style={gridCursos ? { gridTemplateColumns: gridCursos } : undefined}>
                       <span>Alumno</span>
                       {examenCursos.length > 0 && usaBuenasMalas
-                        ? examenCursos.map(c => <span key={c.nombre} style={{ fontSize: 9, textAlign: 'center' }}>{c.nombre}</span>)
+                        ? examenCursos.map(c => (
+                            <span key={c.nombre} style={{ textAlign: 'center', fontSize: 10, padding: '0 4px', lineHeight: 1.2 }}>{c.nombre}</span>
+                          ))
                         : <span>{usaBuenasMalas ? 'Buenas / Malas' : 'Nota'}</span>
                       }
                       <span />
@@ -1251,12 +1259,10 @@ export function AdminExamenesView() {
                           examenCursos.some(c => f.cursos[c.nombre]?.buenas !== '')
                         return (
                           <div key={i} className={`calif-row${tieneRegistrada ? ' calif-row-existente' : ''}`}
-                            style={examenCursos.length > 0 && usaBuenasMalas
-                              ? { gridTemplateColumns: `160px repeat(${examenCursos.length}, 1fr) 28px` }
-                              : undefined}>
+                            style={gridCursos ? { gridTemplateColumns: gridCursos } : undefined}>
                             <div>
                               {f.nombre
-                                ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0 }}>{f.nombre}</div>
+                                ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0, marginBottom: 4 }}>{f.nombre}</div>
                                 : <div className="calif-row-num">ALUMNO #{i + 1}</div>
                               }
                               <input type="text" placeholder="Código"
@@ -1266,15 +1272,15 @@ export function AdminExamenesView() {
 
                             {examenCursos.length > 0 && usaBuenasMalas ? (
                               examenCursos.map(c => (
-                                <div key={c.nombre} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                                <div key={c.nombre} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '0 4px' }}>
                                   <div>
-                                    <div className="calif-row-num" style={{ marginBottom: 2, fontSize: 8 }}>B</div>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Buenas</div>
                                     <input type="number" min={0} placeholder="0"
                                       value={f.cursos[c.nombre]?.buenas ?? ''}
                                       onChange={(e) => updateFilaCurso(i, c.nombre, 'buenas', e.target.value)} />
                                   </div>
                                   <div>
-                                    <div className="calif-row-num" style={{ marginBottom: 2, fontSize: 8 }}>M</div>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Malas</div>
                                     <input type="number" min={0} placeholder="0"
                                       value={f.cursos[c.nombre]?.malas ?? ''}
                                       onChange={(e) => updateFilaCurso(i, c.nombre, 'malas', e.target.value)} />
@@ -1319,6 +1325,8 @@ export function AdminExamenesView() {
                       })}
                     </div>
                   </div>
+                    )
+                  })()
                 )}
 
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
