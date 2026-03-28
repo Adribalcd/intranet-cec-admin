@@ -499,7 +499,7 @@ export function AdminExamenesView() {
   const [loadingExamenes, setLoadingExamenes] = useState(false)
   const [selectedExamen, setSelectedExamen] = useState<Examen | null>(null)
   const [registrando, setRegistrando] = useState(false)
-  const [califFilas, setCalifFilas]   = useState([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
+  const [califFilas, setCalifFilas]   = useState<Array<{ codigoAlumno: string; nombre: string; nota: string; buenas: string; malas: string; cursos: Record<string, { buenas: string; malas: string }> }>>([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '', cursos: {} }])
   const [alumnosDelCiclo, setAlumnosDelCiclo] = useState<Array<{ codigo: string; nombres: string; apellidos: string }>>([])
   const [loadingAlumnos, setLoadingAlumnos]   = useState(false)
   const [loadingNotasExamen, setLoadingNotasExamen] = useState(false)
@@ -548,7 +548,7 @@ export function AdminExamenesView() {
   useEffect(() => {
     if (!cicloNotasId) {
       setExamenesLista([]); setSelectedExamen(null)
-      setAlumnosDelCiclo([]); setCalifFilas([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
+      setAlumnosDelCiclo([]); setCalifFilas([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '', cursos: {} }])
       return
     }
     setLoadingExamenes(true)
@@ -605,6 +605,34 @@ export function AdminExamenesView() {
   }, [selectedExamen?.id])
 
   const clearAlerts = () => { setError(''); setSuccess('') }
+
+  // Cursos del examen seleccionado (desde su Plantilla incluida)
+  const examenCursos: Array<{ nombre: string; puntajeBuena: number; puntajeMala: number }> = (() => {
+    const p = (selectedExamen as any)?.Plantilla
+    if (!p) return []
+    const lista: Array<{ nombre: string; puntajeBuena: number; puntajeMala: number }> = []
+    if (p.tiene_secciones) {
+      for (const sec of (p.Secciones ?? [])) {
+        for (const cur of (sec.Cursos ?? [])) {
+          lista.push({ nombre: cur.nombre, puntajeBuena: Number(cur.puntaje_buena ?? cur.puntajeBuena ?? 4), puntajeMala: Number(cur.puntaje_mala ?? cur.puntajeMala ?? 1) })
+        }
+      }
+    } else {
+      for (const cur of (p.Cursos ?? [])) {
+        lista.push({ nombre: cur.nombre, puntajeBuena: Number(cur.puntaje_buena ?? cur.puntajeBuena ?? 4), puntajeMala: Number(cur.puntaje_mala ?? cur.puntajeMala ?? 1) })
+      }
+    }
+    return lista
+  })()
+
+  const buildFilaVacia = (codigo = '', nombre = '') => ({
+    codigoAlumno: codigo,
+    nombre,
+    nota: '',
+    buenas: '',
+    malas: '',
+    cursos: Object.fromEntries(examenCursos.map(c => [c.nombre, { buenas: '', malas: '' }])),
+  })
 
   // Seleccionar plantilla → cargar cursos en configCursos
   const handleSelectPlantilla = (id: number | '') => {
