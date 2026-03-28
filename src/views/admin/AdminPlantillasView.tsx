@@ -181,6 +181,20 @@ export default function AdminPlantillasView() {
     }
   }
 
+  async function duplicar(id: number, nombre: string) {
+    const nuevoNombre = prompt(`Nombre para la copia de "${nombre}":`, `${nombre} (copia)`)
+    if (!nuevoNombre || !nuevoNombre.trim()) return
+    setError(null)
+    setSuccess(null)
+    try {
+      await adminApi.duplicarPlantillaExamen(id, nuevoNombre.trim())
+      setSuccess('Plantilla duplicada correctamente')
+      await cargar()
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? 'Error al duplicar')
+    }
+  }
+
   // ── Helpers form ──────────────────────────────────────────────────────────
   function setField<K extends keyof PlantillaForm>(k: K, v: PlantillaForm[K]) {
     setForm(f => ({ ...f, [k]: v }))
@@ -267,7 +281,7 @@ export default function AdminPlantillasView() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {plantillas.map(p => (
-            <PlantillaCard key={p.id} plantilla={p} onEdit={abrirEditar} onDelete={eliminar} />
+            <PlantillaCard key={p.id} plantilla={p} onEdit={abrirEditar} onDelete={eliminar} onDuplicate={duplicar} />
           ))}
         </div>
       )}
@@ -297,10 +311,11 @@ export default function AdminPlantillasView() {
 }
 
 // ─── PlantillaCard ────────────────────────────────────────────────────────────
-function PlantillaCard({ plantilla, onEdit, onDelete }: {
+function PlantillaCard({ plantilla, onEdit, onDelete, onDuplicate }: {
   plantilla: PlantillaExamen
   onEdit: (id: number) => void
   onDelete: (id: number, nombre: string) => void
+  onDuplicate: (id: number, nombre: string) => void
 }) {
   const totalCursos = plantilla.tiene_secciones
     ? (plantilla.Secciones ?? []).reduce((s, sec) => s + (sec.Cursos?.length ?? 0), 0)
@@ -322,6 +337,7 @@ function PlantillaCard({ plantilla, onEdit, onDelete }: {
           <span style={badgeGray}>{totalCursos} cursos</span>
         </div>
         <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+          <button onClick={() => onDuplicate(plantilla.id, plantilla.nombre)} style={btnSuccessSm} title="Duplicar"><i className="bi bi-copy" /></button>
           <button onClick={() => onEdit(plantilla.id)} style={btnEdit} title="Editar"><i className="bi bi-pencil" /></button>
           <button onClick={() => onDelete(plantilla.id, plantilla.nombre)} style={btnDanger} title="Eliminar"><i className="bi bi-trash" /></button>
         </div>
