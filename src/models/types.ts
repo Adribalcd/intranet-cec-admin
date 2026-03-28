@@ -253,10 +253,12 @@ export interface CalificacionExamenItem {
   codigoAlumno: string
   /** Nota directa (cuando no se usa fórmula buenas/malas) */
   nota?: number
-  /** Cantidad de respuestas correctas */
+  /** Cantidad de respuestas correctas (global) */
   buenas?: number
-  /** Cantidad de respuestas incorrectas */
+  /** Cantidad de respuestas incorrectas (global) */
   malas?: number
+  /** Detalle por curso (cuando el examen tiene plantilla con cursos) */
+  cursos?: Array<{ nombre: string; buenas: number; malas: number }>
 }
 
 export interface Examen {

@@ -564,8 +564,8 @@ export function AdminExamenesView() {
         setSelectedExamen(null)
         setCalifFilas(
           alumnos.length > 0
-            ? alumnos.map((a: any) => ({ codigoAlumno: a.codigo ?? '', nombre: `${a.nombres ?? ''} ${a.apellidos ?? ''}`.trim(), nota: '', buenas: '', malas: '' }))
-            : [{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }]
+            ? alumnos.map((a: any) => ({ codigoAlumno: a.codigo ?? '', nombre: `${a.nombres ?? ''} ${a.apellidos ?? ''}`.trim(), nota: '', buenas: '', malas: '', cursos: {} }))
+            : [{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '', cursos: {} }]
         )
       })
       .catch(() => setError('Error al cargar exámenes o alumnos del ciclo.'))
@@ -588,6 +588,7 @@ export function AdminExamenesView() {
               nota: String(n.valor ?? n.nota ?? ''),
               buenas: String(n.buenas ?? ''),
               malas: String(n.malas ?? ''),
+              cursos: {},
             })))
           }
         })
@@ -597,8 +598,8 @@ export function AdminExamenesView() {
       // Sin notas previas → pre-llenar con los alumnos del ciclo
       setCalifFilas(
         alumnosDelCiclo.length > 0
-          ? alumnosDelCiclo.map((a) => ({ codigoAlumno: a.codigo ?? '', nombre: `${a.nombres ?? ''} ${a.apellidos ?? ''}`.trim(), nota: '', buenas: '', malas: '' }))
-          : [{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }]
+          ? alumnosDelCiclo.map((a) => ({ codigoAlumno: a.codigo ?? '', nombre: `${a.nombres ?? ''} ${a.apellidos ?? ''}`.trim(), nota: '', buenas: '', malas: '', cursos: {} }))
+          : [{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '', cursos: {} }]
       )
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -710,13 +711,25 @@ export function AdminExamenesView() {
     e.preventDefault(); clearAlerts()
     if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
 
-    const calificaciones: CalificacionExamenItem[] = usaBuenasMalas
+    const usaCursos = examenCursos.length > 0 && usaBuenasMalas
+    const calificaciones: CalificacionExamenItem[] = usaCursos
       ? califFilas
-          .filter((f) => f.codigoAlumno.trim() && f.buenas !== '' && f.malas !== '')
-          .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), buenas: parseInt(f.buenas, 10), malas: parseInt(f.malas, 10) }))
-      : califFilas
-          .filter((f) => f.codigoAlumno.trim() && f.nota !== '')
-          .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), nota: parseFloat(f.nota) }))
+          .filter((f) => f.codigoAlumno.trim() && examenCursos.some(c => f.cursos[c.nombre]?.buenas !== ''))
+          .map((f) => ({
+            codigoAlumno: f.codigoAlumno.trim(),
+            cursos: examenCursos.map(c => ({
+              nombre: c.nombre,
+              buenas: parseInt(f.cursos[c.nombre]?.buenas || '0', 10),
+              malas:  parseInt(f.cursos[c.nombre]?.malas  || '0', 10),
+            })),
+          }))
+      : usaBuenasMalas
+        ? califFilas
+            .filter((f) => f.codigoAlumno.trim() && f.buenas !== '' && f.malas !== '')
+            .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), buenas: parseInt(f.buenas, 10), malas: parseInt(f.malas, 10) }))
+        : califFilas
+            .filter((f) => f.codigoAlumno.trim() && f.nota !== '')
+            .map((f) => ({ codigoAlumno: f.codigoAlumno.trim(), nota: parseFloat(f.nota) }))
 
     if (calificaciones.length === 0) { setError('Ingresa al menos una calificación.'); return }
     setRegistrando(true)
@@ -726,7 +739,7 @@ export function AdminExamenesView() {
       const sorted = [...calificaciones].sort((a, b) => (b.nota ?? 0) - (a.nota ?? 0))
       setRanking(sorted)
       setRankingExamen(selectedExamen)
-      setCalifFilas([{ codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
+      setCalifFilas([buildFilaVacia()])
       if (cicloNotasId) {
         adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r) => setExamenesLista(Array.isArray(r.data) ? r.data : []))
       }
@@ -737,11 +750,18 @@ export function AdminExamenesView() {
     }
   }
 
-  const addFila    = () => setCalifFilas([...califFilas, { codigoAlumno: '', nombre: '', nota: '', buenas: '', malas: '' }])
+  const addFila    = () => setCalifFilas([...califFilas, buildFilaVacia()])
   const removeFila = (i: number) => setCalifFilas(califFilas.filter((_, idx) => idx !== i))
   const updateFila = (i: number, field: 'codigoAlumno' | 'nombre' | 'nota' | 'buenas' | 'malas', val: string) => {
     const next = [...califFilas]; next[i] = { ...next[i], [field]: val }
     setCalifFilas(next)
+  }
+  const updateFilaCurso = (filaIdx: number, cursoNombre: string, campo: 'buenas' | 'malas', val: string) => {
+    setCalifFilas(prev => {
+      const next = [...prev]
+      next[filaIdx] = { ...next[filaIdx], cursos: { ...next[filaIdx].cursos, [cursoNombre]: { ...next[filaIdx].cursos[cursoNombre], [campo]: val } } }
+      return next
+    })
   }
 
   const descargarPlantilla = () => {
@@ -1129,9 +1149,11 @@ export function AdminExamenesView() {
               <form onSubmit={handleRegistrarCalificaciones}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0 }}>
-                    {usaBuenasMalas
-                      ? `Código / Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
-                      : 'Alumnos / Nota directa'}
+                    {examenCursos.length > 0 && usaBuenasMalas
+                      ? `Por curso (B=buenas, M=malas) — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
+                      : usaBuenasMalas
+                        ? `Código / Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
+                        : 'Alumnos / Nota directa'}
                   </label>
                   {loadingNotasExamen && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--teal-mid)' }}>
@@ -1157,14 +1179,21 @@ export function AdminExamenesView() {
                     {/* Cabecera de columnas */}
                     <div className="calif-scroll-header">
                       <span>Alumno</span>
-                      <span>{usaBuenasMalas ? 'Buenas / Malas' : 'Nota'}</span>
+                      {examenCursos.length > 0 && usaBuenasMalas
+                        ? examenCursos.map(c => <span key={c.nombre} style={{ fontSize: 9, textAlign: 'center' }}>{c.nombre}</span>)
+                        : <span>{usaBuenasMalas ? 'Buenas / Malas' : 'Nota'}</span>
+                      }
                       <span />
                     </div>
                     <div className="calif-scroll-body">
                       {califFilas.map((f, i) => {
-                        const tieneRegistrada = f.nota !== '' || (f.buenas !== '' && f.malas !== '')
+                        const tieneRegistrada = f.nota !== '' || (f.buenas !== '' && f.malas !== '') ||
+                          examenCursos.some(c => f.cursos[c.nombre]?.buenas !== '')
                         return (
-                          <div key={i} className={`calif-row${tieneRegistrada ? ' calif-row-existente' : ''}`}>
+                          <div key={i} className={`calif-row${tieneRegistrada ? ' calif-row-existente' : ''}`}
+                            style={examenCursos.length > 0 && usaBuenasMalas
+                              ? { gridTemplateColumns: `160px repeat(${examenCursos.length}, 1fr) 28px` }
+                              : undefined}>
                             <div>
                               {f.nombre
                                 ? <div className="calif-row-num" style={{ textTransform: 'none', fontSize: 10, color: 'var(--teal-dark)', fontWeight: 700, letterSpacing: 0 }}>{f.nombre}</div>
@@ -1175,7 +1204,24 @@ export function AdminExamenesView() {
                                 onChange={(e) => updateFila(i, 'codigoAlumno', e.target.value)} />
                             </div>
 
-                            {usaBuenasMalas ? (
+                            {examenCursos.length > 0 && usaBuenasMalas ? (
+                              examenCursos.map(c => (
+                                <div key={c.nombre} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                                  <div>
+                                    <div className="calif-row-num" style={{ marginBottom: 2, fontSize: 8 }}>B</div>
+                                    <input type="number" min={0} placeholder="0"
+                                      value={f.cursos[c.nombre]?.buenas ?? ''}
+                                      onChange={(e) => updateFilaCurso(i, c.nombre, 'buenas', e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <div className="calif-row-num" style={{ marginBottom: 2, fontSize: 8 }}>M</div>
+                                    <input type="number" min={0} placeholder="0"
+                                      value={f.cursos[c.nombre]?.malas ?? ''}
+                                      onChange={(e) => updateFilaCurso(i, c.nombre, 'malas', e.target.value)} />
+                                  </div>
+                                </div>
+                              ))
+                            ) : usaBuenasMalas ? (
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                                 <div>
                                   {tieneRegistrada && <div className="nota-reg-label"><i className="bi bi-check-circle-fill" style={{ fontSize: 7 }} />actual</div>}
@@ -1220,7 +1266,13 @@ export function AdminExamenesView() {
                     <i className="bi bi-plus-circle" /> Agregar fila
                   </button>
                   {(() => {
-                    const filasValidas = califFilas.filter(f => f.codigoAlumno.trim() && (f.nota !== '' || (f.buenas !== '' && f.malas !== ''))).length
+                    const filasValidas = califFilas.filter(f =>
+                      f.codigoAlumno.trim() && (
+                        f.nota !== '' ||
+                        (f.buenas !== '' && f.malas !== '') ||
+                        (examenCursos.length > 0 && examenCursos.some(c => f.cursos[c.nombre]?.buenas !== ''))
+                      )
+                    ).length
                     const tieneExistentes = parseInt((selectedExamen as any).cantidadNotas ?? '0', 10) > 0
                     if (filasValidas === 0) return null
                     return (
