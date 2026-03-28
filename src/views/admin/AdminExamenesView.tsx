@@ -571,6 +571,7 @@ export function AdminExamenesView() {
     cursos: Array<{ curso: string; aciertos: number; fallos: number; blanco: number; puntaje: number }>
   }
   const [previewResultados, setPreviewResultados] = useState<PreviewItem[] | null>(null)
+  const [expandedPreviewRows, setExpandedPreviewRows] = useState<Set<number>>(new Set())
 
   // Tab activo en el panel de notas: manual o excel
   const [notasTab, setNotasTab] = useState<'manual' | 'excel'>('manual')
