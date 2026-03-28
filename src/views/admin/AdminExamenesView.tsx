@@ -640,7 +640,7 @@ export function AdminExamenesView() {
   const handleCrearExamen = async (e: React.FormEvent) => {
     e.preventDefault(); clearAlerts()
     if (!cicloCrearId || !examenForm.semana || !examenForm.fecha || !plantillaId) {
-      setError('Completa todos los campos obligatorios (ciclo, semana, fecha y plantilla).'); return
+      setError('Completa todos los campos obligatorios (ciclo, número de examen, fecha y plantilla).'); return
     }
     setCreando(true)
     try {
@@ -848,7 +848,7 @@ export function AdminExamenesView() {
             <span className="exam-card-header-icon crear"><i className="bi bi-plus-circle-fill" /></span>
             <div>
               <p className="exam-card-title">Crear examen</p>
-              <p className="exam-card-desc">Define el ciclo, semana, tipo y fecha</p>
+              <p className="exam-card-desc">Define el ciclo, número de examen y fecha</p>
             </div>
           </div>
           <div className="exam-card-body">
@@ -865,8 +865,8 @@ export function AdminExamenesView() {
 
               <div className="exam-field-row">
                 <div className="exam-field">
-                  <label>Semana</label>
-                  <input type="number" placeholder="Ej: 7" min={1}
+                  <label>N° Examen</label>
+                  <input type="number" placeholder="Ej: 1" min={1}
                     value={examenForm.semana}
                     onChange={(e) => setExamenForm({ ...examenForm, semana: e.target.value })} required />
                 </div>
@@ -1028,7 +1028,7 @@ export function AdminExamenesView() {
                         onClick={() => setSelectedExamen(ex)}
                       >
                         <div className="exam-list-item-left">
-                          <div className="exam-list-item-tipo">{ex.subtipo_examen ?? ex.subtipoExamen ?? ex.tipo_examen ?? ex.tipoExamen} — Sem. {ex.semana}</div>
+                          <div className="exam-list-item-tipo">{ex.subtipo_examen ?? ex.subtipoExamen ?? ex.tipo_examen ?? ex.tipoExamen} — Examen N° {ex.semana}</div>
                           <div className="exam-list-item-meta">
                             {fmtFecha(ex.fecha)}
                             {(ex.cantidad_preguntas ?? ex.cantidadPreguntas) && <span style={{ marginLeft: 8 }}><i className="bi bi-question-circle me-1" />{ex.cantidad_preguntas ?? ex.cantidadPreguntas} preg.</span>}
@@ -1192,7 +1192,7 @@ export function AdminExamenesView() {
               <p className="excel-panel-title">Plantilla Excel</p>
               <p className="excel-panel-desc">
                 {selectedExamen
-                  ? <>Plantilla para <strong>{selectedExamen.tipo_examen ?? selectedExamen.tipoExamen}</strong> (Sem. {selectedExamen.semana}). Descarga, llena las notas y sube el archivo.</>
+                  ? <>Plantilla para <strong>{selectedExamen.tipo_examen ?? selectedExamen.tipoExamen}</strong> (Examen N° {selectedExamen.semana}). Descarga, llena las notas y sube el archivo.</>
                   : 'Selecciona un ciclo y un examen para descargar la plantilla o subir notas.'}
               </p>
               <div className="excel-panel-actions">
@@ -1212,7 +1212,7 @@ export function AdminExamenesView() {
               <p className="simulacro-panel-title"><i className="bi bi-grid-3x3-gap-fill me-1" />Simulacro OMR por Área (A–E)</p>
               <p className="simulacro-panel-desc">
                 {selectedExamen
-                  ? <>Sube el Excel del lector OMR para <strong>{selectedExamen.tipo_examen ?? (selectedExamen as any).tipoExamen}</strong> (Sem. {selectedExamen.semana}). El sistema detectará el área automáticamente y guardará los puntajes por curso.</>
+                  ? <>Sube el Excel del lector OMR para <strong>{selectedExamen.tipo_examen ?? (selectedExamen as any).tipoExamen}</strong> (Examen N° {selectedExamen.semana}). El sistema detectará el área automáticamente y guardará los puntajes por curso.</>
                   : 'Selecciona un examen para subir el archivo Excel de simulacro OMR.'}
               </p>
               <div className="excel-panel-actions">
@@ -1297,7 +1297,7 @@ export function AdminExamenesView() {
               {consultaExamenes.map((ex) => (
                 <div key={ex.id} className="consultar-exam-item">
                   <div>
-                    <div className="consultar-exam-tipo">{ex.tipo_examen ?? ex.tipoExamen} — Semana {ex.semana}</div>
+                    <div className="consultar-exam-tipo">{ex.tipo_examen ?? ex.tipoExamen} — Examen N° {ex.semana}</div>
                     <div className="consultar-exam-meta">
                       <i className="bi bi-calendar-event me-1" />
                       {fmtFecha(ex.fecha)}
@@ -1340,7 +1340,7 @@ export function AdminExamenesView() {
                   <div className="ranking-header-icon"><i className="bi bi-trophy-fill" /></div>
                   <div>
                     <p className="ranking-title">
-                      {consultaRanking.examen?.tipo_examen ?? consultaRanking.examen?.tipoExamen} — Sem. {consultaRanking.examen?.semana}
+                      {consultaRanking.examen?.tipo_examen ?? consultaRanking.examen?.tipoExamen} — Examen N° {consultaRanking.examen?.semana}
                     </p>
                     <p className="ranking-subtitle">
                       {fmtFecha(consultaRanking.examen?.fecha)} &nbsp;·&nbsp; {consultaRanking.notas.length} alumnos
@@ -1439,7 +1439,7 @@ export function AdminExamenesView() {
               <div>
                 <p className="ranking-title">Orden de mérito</p>
                 <p className="ranking-subtitle">
-                  {rankingExamen.tipo_examen ?? rankingExamen.tipoExamen} — Sem. {rankingExamen.semana} &nbsp;·&nbsp; {ranking.length} alumnos
+                  {rankingExamen.tipo_examen ?? rankingExamen.tipoExamen} — Examen N° {rankingExamen.semana} &nbsp;·&nbsp; {ranking.length} alumnos
                 </p>
               </div>
             </div>
