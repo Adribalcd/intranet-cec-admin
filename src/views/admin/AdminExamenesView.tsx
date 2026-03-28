@@ -560,9 +560,17 @@ export function AdminExamenesView() {
 
   const fileResultadosRef = useRef<HTMLInputElement>(null)
   const [subiendoResultados, setSubiendoResultados] = useState(false)
+  const [confirmandoResultados, setConfirmandoResultados] = useState(false)
   const [resultadosResumen, setResultadosResumen] = useState<{
-    procesados: number; noEncontradosEnExcel: string[]; noEncontrados: string[]; errores: Array<{ alumno: string; error: string }>
+    procesados: number; noEncontradosEnExcel?: string[]; noEncontrados?: string[]; errores: Array<{ alumno?: string; alumnoId?: number; error: string }>
   } | null>(null)
+  type PreviewItem = {
+    alumnoId: number; dni: string; codigo: string; nombres: string; apellidos: string
+    encontradoEnExcel: boolean
+    global: { total: number; aciertos: number; fallos: number; blanco: number; puntaje: number } | null
+    cursos: Array<{ curso: string; aciertos: number; fallos: number; blanco: number; puntaje: number }>
+  }
+  const [previewResultados, setPreviewResultados] = useState<PreviewItem[] | null>(null)
 
   // Tab activo en el panel de notas: manual o excel
   const [notasTab, setNotasTab] = useState<'manual' | 'excel'>('manual')
@@ -865,26 +873,43 @@ export function AdminExamenesView() {
       .finally(() => setSubiendoSimulacro(false))
   }
 
-  const subirResultadosExcel = (file: File) => {
+  const cargarPreviewResultados = (file: File) => {
     if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
     clearAlerts()
     setResultadosResumen(null)
+    setPreviewResultados(null)
     setSubiendoResultados(true)
-    adminApi.subirExcelResultados(selectedExamen.id, file)
+    adminApi.previewExcelResultados(selectedExamen.id, file)
+      .then((r) => {
+        setPreviewResultados(r.data.preview)
+        const enc = r.data.encontrados
+        const tot = r.data.total
+        if (enc === 0) setError(`No se encontró ningún alumno en el Excel (${tot} matriculados buscados). Verifica el archivo.`)
+      })
+      .catch((e) => setError('Error al leer el Excel: ' + (e?.response?.data?.error ?? e?.message ?? 'Error desconocido')))
+      .finally(() => setSubiendoResultados(false))
+  }
+
+  const confirmarResultados = () => {
+    if (!selectedExamen || !previewResultados) return
+    const notasAGuardar = previewResultados
+      .filter(p => p.encontradoEnExcel && p.global)
+      .map(p => ({ alumnoId: p.alumnoId, global: p.global, cursos: p.cursos }))
+    if (notasAGuardar.length === 0) { setError('No hay notas encontradas para guardar.'); return }
+    clearAlerts()
+    setConfirmandoResultados(true)
+    adminApi.confirmarExcelResultados(selectedExamen.id, notasAGuardar)
       .then((r) => {
         const { resumen } = r.data
         setResultadosResumen(resumen)
-        const noEnc = resumen.noEncontradosEnExcel ?? resumen.noEncontrados ?? []
-        setSuccess(
-          `Excel de Resultados procesado. ${resumen.procesados} alumno(s) registrados.` +
-          (noEnc.length ? ` ${noEnc.length} alumno(s) no encontrados en el Excel.` : '')
-        )
+        setPreviewResultados(null)
+        setSuccess(`${resumen.procesados} nota(s) guardadas correctamente.`)
         if (cicloNotasId) {
           adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r2) => setExamenesLista(Array.isArray(r2.data) ? r2.data : []))
         }
       })
-      .catch((e) => setError('Error al procesar el Excel de resultados: ' + (e?.response?.data?.error ?? e?.message ?? 'Error desconocido')))
-      .finally(() => setSubiendoResultados(false))
+      .catch((e) => setError('Error al guardar notas: ' + (e?.response?.data?.error ?? e?.message ?? 'Error desconocido')))
+      .finally(() => setConfirmandoResultados(false))
   }
 
   // ── Handlers de consulta ──
@@ -1423,25 +1448,119 @@ export function AdminExamenesView() {
                   <i className="bi bi-bar-chart-fill excel-upload-card-icon" />
                   <div className="excel-upload-card-info">
                     <div className="excel-upload-card-title">Resultados por alumno</div>
-                    <div className="excel-upload-card-desc">Excel con hoja <strong>ESTADÍSTICA INDIVIDUAL</strong>. Registra resultados por alumno y por curso automáticamente.</div>
+                    <div className="excel-upload-card-desc">Excel con hoja <strong>ESTADÍSTICA INDIVIDUAL</strong>. Previsualiza y confirma antes de guardar.</div>
                   </div>
                   <div className="excel-upload-card-actions">
-                    <button type="button" style={{ background: '#4f46e5' }} className="btn-simulacro-up" onClick={() => fileResultadosRef.current?.click()} disabled={!selectedExamen || subiendoResultados}>
-                      {subiendoResultados ? <><div className="exam-spinner-sm" />Procesando...</> : <><i className="bi bi-upload" />Subir</>}
+                    <button type="button" style={{ background: '#4f46e5' }} className="btn-simulacro-up"
+                      onClick={() => fileResultadosRef.current?.click()}
+                      disabled={!selectedExamen || subiendoResultados || !!previewResultados}>
+                      {subiendoResultados ? <><div className="exam-spinner-sm" />Leyendo...</> : <><i className="bi bi-upload" />Subir Excel</>}
                     </button>
                     <input ref={fileResultadosRef} type="file" accept=".xlsx" style={{ display: 'none' }}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) subirResultadosExcel(f); e.target.value = '' }} />
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarPreviewResultados(f); e.target.value = '' }} />
                   </div>
-                  {resultadosResumen && (
+                  {resultadosResumen && !previewResultados && (
                     <div style={{ width: '100%', marginTop: 8 }}>
                       <div className="simulacro-resumen">
-                        <div className="simulacro-resumen-row"><span className="simulacro-tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>OK</span><span style={{ color: '#3730a3', fontWeight: 600 }}>{resultadosResumen.procesados} alumno(s)</span></div>
-                        {(resultadosResumen.noEncontradosEnExcel ?? resultadosResumen.noEncontrados ?? []).length > 0 && <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-warn">Sin datos</span><span style={{ color: '#854d0e', fontSize: 11 }}>{(resultadosResumen.noEncontradosEnExcel ?? resultadosResumen.noEncontrados ?? []).slice(0, 5).join(', ')}{(resultadosResumen.noEncontradosEnExcel ?? resultadosResumen.noEncontrados ?? []).length > 5 ? '…' : ''}</span></div>}
-                        {resultadosResumen.errores.length > 0 && <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-err">Errores</span><span style={{ color: '#b91c1c' }}>{resultadosResumen.errores.map(e => e.alumno).join(', ')}</span></div>}
+                        <div className="simulacro-resumen-row">
+                          <span className="simulacro-tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>Guardado</span>
+                          <span style={{ color: '#3730a3', fontWeight: 600 }}>{resultadosResumen.procesados} nota(s) registradas</span>
+                        </div>
+                        {resultadosResumen.errores.length > 0 && (
+                          <div className="simulacro-resumen-row">
+                            <span className="simulacro-tag simulacro-tag-err">Errores</span>
+                            <span style={{ color: '#b91c1c' }}>{resultadosResumen.errores.length} error(es)</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
+
+                {/* Preview de resultados */}
+                {previewResultados && (
+                  <div style={{ width: '100%', background: '#f8fafc', border: '1.5px solid #c7d2fe', borderRadius: 12, padding: '16px 18px', marginTop: 4 }}>
+                    {(() => {
+                      const encontrados = previewResultados.filter(p => p.encontradoEnExcel)
+                      const noEncontrados = previewResultados.filter(p => !p.encontradoEnExcel)
+                      return (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ fontWeight: 700, fontSize: 13, color: '#3730a3' }}>
+                                <i className="bi bi-eye-fill me-1" />Vista previa
+                              </span>
+                              <span style={{ background: '#dcfce7', color: '#166534', borderRadius: 8, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>
+                                {encontrados.length} encontrados
+                              </span>
+                              {noEncontrados.length > 0 && (
+                                <span style={{ background: '#fef9c3', color: '#854d0e', borderRadius: 8, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>
+                                  {noEncontrados.length} sin datos
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button type="button"
+                                style={{ background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: 7, padding: '5px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                onClick={() => { setPreviewResultados(null); setResultadosResumen(null) }}>
+                                <i className="bi bi-x-lg me-1" />Cancelar
+                              </button>
+                              <button type="button"
+                                style={{ background: confirmandoResultados ? '#818cf8' : '#4f46e5', color: '#fff', border: 'none', borderRadius: 7, padding: '5px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                                disabled={confirmandoResultados || encontrados.length === 0}
+                                onClick={confirmarResultados}>
+                                {confirmandoResultados
+                                  ? <><div className="exam-spinner-sm" style={{ borderColor: '#c7d2fe', borderTopColor: '#fff' }} />Guardando...</>
+                                  : <><i className="bi bi-check2-all" />Guardar {encontrados.length} nota(s)</>}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ overflowX: 'auto', maxHeight: 340, overflowY: 'auto', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                              <thead>
+                                <tr style={{ background: '#e0e7ff', position: 'sticky', top: 0 }}>
+                                  <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 700, color: '#3730a3', whiteSpace: 'nowrap' }}>Alumno</th>
+                                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 700, color: '#3730a3' }}>DNI</th>
+                                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 700, color: '#3730a3' }}>Puntaje</th>
+                                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 700, color: '#059669' }}>Aciertos</th>
+                                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 700, color: '#dc2626' }}>Fallos</th>
+                                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 700, color: '#6b7280' }}>Blanco</th>
+                                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 700, color: '#6b7280' }}>Cursos</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {previewResultados.map((p, i) => (
+                                  <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: p.encontradoEnExcel ? '#fff' : '#fef2f2' }}>
+                                    <td style={{ padding: '6px 10px', fontWeight: 600, color: p.encontradoEnExcel ? '#1e293b' : '#9ca3af' }}>
+                                      {p.apellidos} {p.nombres}
+                                    </td>
+                                    <td style={{ textAlign: 'center', padding: '6px 8px', color: '#64748b' }}>{p.dni || p.codigo}</td>
+                                    {p.encontradoEnExcel && p.global ? (
+                                      <>
+                                        <td style={{ textAlign: 'center', padding: '6px 8px', fontWeight: 700, color: '#3730a3' }}>{p.global.puntaje?.toFixed(2)}</td>
+                                        <td style={{ textAlign: 'center', padding: '6px 8px', color: '#059669', fontWeight: 600 }}>{p.global.aciertos}</td>
+                                        <td style={{ textAlign: 'center', padding: '6px 8px', color: '#dc2626', fontWeight: 600 }}>{p.global.fallos}</td>
+                                        <td style={{ textAlign: 'center', padding: '6px 8px', color: '#6b7280' }}>{p.global.blanco}</td>
+                                        <td style={{ textAlign: 'center', padding: '6px 8px', color: '#6b7280', fontSize: 11 }}>
+                                          {p.cursos.length > 0 ? p.cursos.map(c => c.curso).join(', ') : '—'}
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <td colSpan={5} style={{ textAlign: 'center', padding: '6px 8px', color: '#f87171', fontSize: 11, fontStyle: 'italic' }}>
+                                        No encontrado en el Excel
+                                      </td>
+                                    )}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
             )}
 
