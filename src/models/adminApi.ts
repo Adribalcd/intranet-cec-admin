@@ -187,7 +187,7 @@ export const adminApi = {
   subirExcelResultados(examenId: number, file: File) {
     const form = new FormData()
     form.append('archivo', file)
-    return api.post<{ ok: boolean; resumen: { procesados: number; noEncontrados: string[]; errores: Array<{ codigo: string; error: string }> } }>(
+    return api.post<{ ok: boolean; resumen: { procesados: number; noEncontradosEnExcel: string[]; noEncontrados: string[]; errores: Array<{ alumno: string; error: string }> } }>(
       `${PREFIX}/examen/${examenId}/subir-excel-resultados`, form
     )
   },

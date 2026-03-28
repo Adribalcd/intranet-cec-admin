@@ -774,9 +774,10 @@ export function AdminExamenesView() {
       .then((r) => {
         const { resumen } = r.data
         setResultadosResumen(resumen)
+        const noEnc = resumen.noEncontradosEnExcel ?? resumen.noEncontrados ?? []
         setSuccess(
           `Excel de Resultados procesado. ${resumen.procesados} alumno(s) registrados.` +
-          (resumen.noEncontrados.length ? ` ${resumen.noEncontrados.length} código(s) no encontrados.` : '')
+          (noEnc.length ? ` ${noEnc.length} alumno(s) no encontrados en el Excel.` : '')
         )
         if (cicloNotasId) {
           adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r2) => setExamenesLista(Array.isArray(r2.data) ? r2.data : []))
