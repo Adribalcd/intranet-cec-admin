@@ -184,6 +184,13 @@ export const adminApi = {
   getNotasSimulacro(examenId: number) {
     return api.get<any[]>(`${PREFIX}/examen/${examenId}/notas-simulacro`)
   },
+  subirExcelResultados(examenId: number, file: File) {
+    const form = new FormData()
+    form.append('archivo', file)
+    return api.post<{ ok: boolean; resumen: { procesados: number; noEncontrados: string[]; errores: Array<{ codigo: string; error: string }> } }>(
+      `${PREFIX}/examen/${examenId}/subir-excel-resultados`, form
+    )
+  },
 
   // --- Horarios de cursos
   getHorarios(cicloId?: number) {

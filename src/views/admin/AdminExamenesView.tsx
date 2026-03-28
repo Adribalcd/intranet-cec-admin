@@ -514,6 +514,12 @@ export function AdminExamenesView() {
     area: string; procesados: number; noEncontrados: string[]; errores: Array<{ dni: string; error: string }>
   } | null>(null)
 
+  const fileResultadosRef = useRef<HTMLInputElement>(null)
+  const [subiendoResultados, setSubiendoResultados] = useState(false)
+  const [resultadosResumen, setResultadosResumen] = useState<{
+    procesados: number; noEncontrados: string[]; errores: Array<{ codigo: string; error: string }>
+  } | null>(null)
+
   // ── Consulta de exámenes ──
   const [consultaCicloId, setConsultaCicloId] = useState<number | ''>('')
   const [consultaExamenes, setConsultaExamenes] = useState<Examen[]>([])
@@ -757,6 +763,27 @@ export function AdminExamenesView() {
       })
       .catch((e) => setError('Error al procesar el Excel de simulacro: ' + (e?.response?.data?.error ?? e?.message ?? 'Error desconocido')))
       .finally(() => setSubiendoSimulacro(false))
+  }
+
+  const subirResultadosExcel = (file: File) => {
+    if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
+    clearAlerts()
+    setResultadosResumen(null)
+    setSubiendoResultados(true)
+    adminApi.subirExcelResultados(selectedExamen.id, file)
+      .then((r) => {
+        const { resumen } = r.data
+        setResultadosResumen(resumen)
+        setSuccess(
+          `Excel de Resultados procesado. ${resumen.procesados} alumno(s) registrados.` +
+          (resumen.noEncontrados.length ? ` ${resumen.noEncontrados.length} código(s) no encontrados.` : '')
+        )
+        if (cicloNotasId) {
+          adminApi.getExamenesPorCiclo(cicloNotasId as number).then((r2) => setExamenesLista(Array.isArray(r2.data) ? r2.data : []))
+        }
+      })
+      .catch((e) => setError('Error al procesar el Excel de resultados: ' + (e?.response?.data?.error ?? e?.message ?? 'Error desconocido')))
+      .finally(() => setSubiendoResultados(false))
   }
 
   // ── Handlers de consulta ──
@@ -1248,6 +1275,53 @@ export function AdminExamenesView() {
                     <div className="simulacro-resumen-row">
                       <span className="simulacro-tag simulacro-tag-err">Errores</span>
                       <span style={{ color: '#b91c1c' }}>{simulacroResumen.errores.map(e => e.dni).join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Resultados — Excel con ALUMNOS + ESTADÍSTICA INDIVIDUAL */}
+            <div className="simulacro-panel" style={{ borderColor: '#c7d2fe', background: '#eef2ff' }}>
+              <p className="simulacro-panel-title" style={{ color: '#3730a3' }}><i className="bi bi-bar-chart-fill me-1" />Resultados por Alumno (ESTADÍSTICA INDIVIDUAL)</p>
+              <p className="simulacro-panel-desc">
+                {selectedExamen
+                  ? <>Sube el Excel con hojas <strong>ALUMNOS</strong> y <strong>ESTADÍSTICA INDIVIDUAL</strong> para <strong>Examen N° {selectedExamen.semana}</strong>. Se registrarán los resultados por alumno y por curso.</>
+                  : 'Selecciona un examen para subir el archivo Excel de resultados.'}
+              </p>
+              <div className="excel-panel-actions">
+                <button
+                  type="button"
+                  className="btn-simulacro-up"
+                  style={{ background: '#4f46e5' }}
+                  onClick={() => fileResultadosRef.current?.click()}
+                  disabled={!selectedExamen || subiendoResultados}
+                >
+                  {subiendoResultados
+                    ? <><div className="exam-spinner-sm" />Procesando...</>
+                    : <><i className="bi bi-file-earmark-bar-graph" />Subir Excel Resultados</>}
+                </button>
+                <input
+                  ref={fileResultadosRef} type="file" accept=".xlsx" style={{ display: 'none' }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) subirResultadosExcel(f); e.target.value = '' }}
+                />
+              </div>
+              {resultadosResumen && (
+                <div className="simulacro-resumen">
+                  <div className="simulacro-resumen-row">
+                    <span className="simulacro-tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>Procesados</span>
+                    <span style={{ color: '#3730a3', fontWeight: 600 }}>{resultadosResumen.procesados} alumno(s) registrados</span>
+                  </div>
+                  {resultadosResumen.noEncontrados.length > 0 && (
+                    <div className="simulacro-resumen-row">
+                      <span className="simulacro-tag simulacro-tag-warn">No encontrados</span>
+                      <span style={{ color: '#854d0e' }}>{resultadosResumen.noEncontrados.join(', ')}</span>
+                    </div>
+                  )}
+                  {resultadosResumen.errores.length > 0 && (
+                    <div className="simulacro-resumen-row">
+                      <span className="simulacro-tag simulacro-tag-err">Errores</span>
+                      <span style={{ color: '#b91c1c' }}>{resultadosResumen.errores.map(e => e.codigo).join(', ')}</span>
                     </div>
                   )}
                 </div>
