@@ -1820,8 +1820,9 @@ export function AdminExamenesView() {
                     <tbody>
                       {consultaRanking.notas.map((r, i) => {
                         const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : ''
-                        const pct = (r.nota / 20) * 100
-                        const barClass = r.nota >= 14 ? 'high' : r.nota >= 11 ? 'mid' : 'low'
+                        const maxPtos = (consultaRanking.examen?.cantidad_preguntas ?? consultaRanking.examen?.cantidadPreguntas ?? 20) * (consultaRanking.examen?.puntaje_pregunta_buena ?? consultaRanking.examen?.puntajePreguntaBuena ?? 1)
+                        const pct = (r.nota / (maxPtos > 0 ? maxPtos : 20)) * 100
+                        const barClass = r.nota / (maxPtos > 0 ? maxPtos : 20) >= 0.7 ? 'high' : r.nota / (maxPtos > 0 ? maxPtos : 20) >= 0.5 ? 'mid' : 'low'
                         return (
                           <tr key={i}>
                             <td><span className={`rank-pos ${posClass}`}>{r.puesto}</span></td>
@@ -1915,8 +1916,9 @@ export function AdminExamenesView() {
               <tbody>
                 {ranking.map((r, i) => {
                   const posClass = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : ''
-                  const pct = ranking[0].nota > 0 ? (r.nota / 20) * 100 : 0
-                  const barClass = r.nota >= 14 ? 'high' : r.nota >= 11 ? 'mid' : 'low'
+                  const maxPtos = (rankingExamen?.cantidad_preguntas ?? rankingExamen?.cantidadPreguntas ?? 20) * (rankingExamen?.puntaje_pregunta_buena ?? rankingExamen?.puntajePreguntaBuena ?? 1)
+                  const pct = r.nota > 0 ? (r.nota / (maxPtos > 0 ? maxPtos : 20)) * 100 : 0
+                  const barClass = r.nota / (maxPtos > 0 ? maxPtos : 20) >= 0.7 ? 'high' : r.nota / (maxPtos > 0 ? maxPtos : 20) >= 0.5 ? 'mid' : 'low'
                   return (
                     <tr key={i}>
                       <td><span className={`rank-pos ${posClass}`}>{i + 1}</span></td>
