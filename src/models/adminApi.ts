@@ -191,6 +191,30 @@ export const adminApi = {
       `${PREFIX}/examen/${examenId}/subir-excel-resultados`, form
     )
   },
+  previewExcelResultados(examenId: number, file: File) {
+    const form = new FormData()
+    form.append('archivo', file)
+    return api.post<{
+      ok: boolean
+      encontrados: number
+      total: number
+      preview: Array<{
+        alumnoId: number
+        dni: string
+        codigo: string
+        nombres: string
+        apellidos: string
+        encontradoEnExcel: boolean
+        global: { total: number; aciertos: number; fallos: number; blanco: number; puntaje: number } | null
+        cursos: Array<{ curso: string; aciertos: number; fallos: number; blanco: number; puntaje: number }>
+      }>
+    }>(`${PREFIX}/examen/${examenId}/preview-excel-resultados`, form)
+  },
+  confirmarExcelResultados(examenId: number, notas: Array<{ alumnoId: number; global: any; cursos: any[] }>) {
+    return api.post<{ ok: boolean; resumen: { procesados: number; errores: Array<{ alumnoId: number; error: string }> } }>(
+      `${PREFIX}/examen/${examenId}/confirmar-excel-resultados`, { notas }
+    )
+  },
 
   // --- Horarios de cursos
   getHorarios(cicloId?: number) {
