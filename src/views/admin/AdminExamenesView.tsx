@@ -197,6 +197,7 @@ const styles = `
   /* ── Contenedor scrolleable de filas ── */
   .calif-scroll-wrap {
     border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px;
+    overflow-x: auto;
   }
   .calif-scroll-header {
     display: grid; grid-template-columns: 1fr 0.7fr 30px;
@@ -204,10 +205,12 @@ const styles = `
     background: var(--teal-dark);
     font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
     color: rgba(255,255,255,0.75);
+    min-width: max-content; width: 100%;
   }
   .calif-scroll-body {
     max-height: 460px; overflow-y: auto;
     display: flex; flex-direction: column; gap: 0; background: white;
+    min-width: max-content;
   }
   .calif-scroll-body::-webkit-scrollbar { width: 4px; }
   .calif-scroll-body::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -475,6 +478,47 @@ const styles = `
     display: flex; align-items: center; gap: 8px;
     padding: 16px; color: var(--teal-mid); font-size: 13px;
   }
+
+  /* ── Tabs notas ── */
+  .notas-tabs {
+    display: flex; border-bottom: 2px solid var(--border);
+    margin: 0 0 16px; gap: 2px;
+  }
+  .notas-tab-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px; border: none; background: transparent;
+    font-size: 12px; font-weight: 700; font-family: inherit;
+    color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: color 0.15s, border-color 0.15s;
+    border-radius: 8px 8px 0 0;
+  }
+  .notas-tab-btn:hover { color: var(--teal-dark); background: var(--teal-pale); }
+  .notas-tab-btn.active { color: var(--teal-dark); border-bottom-color: var(--teal-mid); background: var(--teal-pale); }
+
+  /* ── Excel upload grid ── */
+  .excel-upload-grid { display: flex; flex-direction: column; gap: 12px; }
+  .excel-upload-card {
+    border-radius: 12px; padding: 14px 16px; border: 1.5px solid;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .excel-upload-card-info { flex: 1; min-width: 160px; }
+  .excel-upload-card-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .excel-upload-card-desc  { font-size: 11px; color: var(--text-muted); }
+  .excel-upload-card-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .excel-upload-card.plantilla { background: #f0f6ff; border-color: #bfdbfe; }
+  .excel-upload-card.plantilla .excel-upload-card-title { color: #1d3557; }
+  .excel-upload-card.plantilla .excel-upload-card-icon { color: #1d3557; }
+
+  .excel-upload-card.simulacro { background: #f0fdf4; border-color: #86efac; }
+  .excel-upload-card.simulacro .excel-upload-card-title { color: var(--green-dark); }
+  .excel-upload-card.simulacro .excel-upload-card-icon { color: var(--green-dark); }
+
+  .excel-upload-card.resultados { background: #eef2ff; border-color: #c7d2fe; }
+  .excel-upload-card.resultados .excel-upload-card-title { color: #3730a3; }
+  .excel-upload-card.resultados .excel-upload-card-icon { color: #3730a3; }
+
+  .excel-upload-card-icon { font-size: 24px; flex-shrink: 0; }
 `
 
 export function AdminExamenesView() {
@@ -517,8 +561,11 @@ export function AdminExamenesView() {
   const fileResultadosRef = useRef<HTMLInputElement>(null)
   const [subiendoResultados, setSubiendoResultados] = useState(false)
   const [resultadosResumen, setResultadosResumen] = useState<{
-    procesados: number; noEncontrados: string[]; errores: Array<{ codigo: string; error: string }>
+    procesados: number; noEncontradosEnExcel: string[]; noEncontrados: string[]; errores: Array<{ alumno: string; error: string }>
   } | null>(null)
+
+  // Tab activo en el panel de notas: manual o excel
+  const [notasTab, setNotasTab] = useState<'manual' | 'excel'>('manual')
 
   // ── Consulta de exámenes ──
   const [consultaCicloId, setConsultaCicloId] = useState<number | ''>('')
@@ -764,17 +811,22 @@ export function AdminExamenesView() {
     })
   }
 
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   const descargarPlantilla = () => {
     if (!selectedExamen) { setError('Selecciona un examen primero.'); return }
     clearAlerts()
     adminApi.getExamenPlantillaNotas(selectedExamen.id)
-      .then((res) => {
-        const url = URL.createObjectURL(res.data as Blob)
-        const a = document.createElement('a')
-        a.href = url; a.download = `plantilla-notas-examen-${selectedExamen.id}.xlsx`; a.click()
-        URL.revokeObjectURL(url)
-        setSuccess('Plantilla descargada.')
-      })
+      .then((res) => { triggerDownload(res.data as Blob, `plantilla-notas-examen-${selectedExamen.id}.xlsx`); setSuccess('Plantilla descargada.') })
       .catch(() => setError('Error al descargar la plantilla.'))
   }
 
@@ -865,10 +917,7 @@ export function AdminExamenesView() {
     setDlRankingId(examenId)
     try {
       const res = await adminApi.reporteOrdenMerito(examenId)
-      const url = URL.createObjectURL(res.data as Blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `ranking-examen-${examenId}.xlsx`; a.click()
-      URL.revokeObjectURL(url)
+      triggerDownload(res.data as Blob, `ranking-examen-${examenId}.xlsx`)
     } catch {
       setError('Error al descargar el ranking.')
     } finally {
@@ -1145,15 +1194,26 @@ export function AdminExamenesView() {
             )}
 
             {/* Filas de notas manuales */}
-            {selectedExamen && (
+            {/* ── Tabs ── */}
+            <div className="notas-tabs">
+              <button type="button" className={`notas-tab-btn${notasTab === 'manual' ? ' active' : ''}`} onClick={() => setNotasTab('manual')}>
+                <i className="bi bi-pencil-square" /> Ingreso manual
+              </button>
+              <button type="button" className={`notas-tab-btn${notasTab === 'excel' ? ' active' : ''}`} onClick={() => setNotasTab('excel')}>
+                <i className="bi bi-file-earmark-excel-fill" style={{ color: '#1d6f42' }} /> Carga por Excel
+              </button>
+            </div>
+
+            {/* ── Tab: Manual ── */}
+            {notasTab === 'manual' && selectedExamen && (
               <form onSubmit={handleRegistrarCalificaciones}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0 }}>
                     {examenCursos.length > 0 && usaBuenasMalas
-                      ? `Por curso (B=buenas, M=malas) — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
+                      ? `Por curso — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
                       : usaBuenasMalas
-                        ? `Código / Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
-                        : 'Alumnos / Nota directa'}
+                        ? `Buenas / Malas — fórmula: (B×${selectedExamen.puntaje_pregunta_buena ?? 4}) − (M×${selectedExamen.puntaje_pregunta_mala ?? 1})`
+                        : 'Nota directa'}
                   </label>
                   {loadingNotasExamen && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--teal-mid)' }}>
@@ -1289,125 +1349,93 @@ export function AdminExamenesView() {
               </form>
             )}
 
-            {/* Excel section */}
-            <div className="exam-divider">
-              <div className="exam-divider-line" />
-              <span className="exam-divider-label"><i className="bi bi-file-earmark-excel-fill me-1" style={{ color: '#1d6f42' }} />Carga masiva por Excel</span>
-              <div className="exam-divider-line" />
-            </div>
-
-            <div className="excel-panel">
-              <p className="excel-panel-title">Plantilla Excel</p>
-              <p className="excel-panel-desc">
-                {selectedExamen
-                  ? <>Plantilla para <strong>{selectedExamen.tipo_examen ?? selectedExamen.tipoExamen}</strong> (Examen N° {selectedExamen.semana}). Descarga, llena las notas y sube el archivo.</>
-                  : 'Selecciona un ciclo y un examen para descargar la plantilla o subir notas.'}
-              </p>
-              <div className="excel-panel-actions">
-                <button type="button" className="btn-excel-dl" onClick={descargarPlantilla} disabled={!selectedExamen}>
-                  <i className="bi bi-download" /> Descargar plantilla
-                </button>
-                <button type="button" className="btn-excel-up" onClick={() => fileInputRef.current?.click()} disabled={!selectedExamen}>
-                  <i className="bi bi-upload" /> Subir Excel
-                </button>
-                <input ref={fileInputRef} type="file" accept=".xlsx" style={{ display: 'none' }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) subirNotasExcel(f) }} />
+            {notasTab === 'manual' && !selectedExamen && (
+              <div className="exam-no-ciclo" style={{ padding: '24px 20px' }}>
+                <i className="bi bi-pencil-square" />
+                Selecciona un examen de la lista para ingresar notas.
               </div>
-            </div>
+            )}
 
-            {/* Simulacro OMR por área */}
-            <div className="simulacro-panel">
-              <p className="simulacro-panel-title"><i className="bi bi-grid-3x3-gap-fill me-1" />Simulacro OMR por Área (A–E)</p>
-              <p className="simulacro-panel-desc">
-                {selectedExamen
-                  ? <>Sube el Excel del lector OMR para <strong>{selectedExamen.tipo_examen ?? (selectedExamen as any).tipoExamen}</strong> (Examen N° {selectedExamen.semana}). El sistema detectará el área automáticamente y guardará los puntajes por curso.</>
-                  : 'Selecciona un examen para subir el archivo Excel de simulacro OMR.'}
-              </p>
-              <div className="excel-panel-actions">
-                <button
-                  type="button"
-                  className="btn-simulacro-up"
-                  onClick={() => fileSimulacroRef.current?.click()}
-                  disabled={!selectedExamen || subiendoSimulacro}
-                >
-                  {subiendoSimulacro
-                    ? <><div className="exam-spinner-sm" />Procesando...</>
-                    : <><i className="bi bi-file-earmark-spreadsheet" />Subir Excel Simulacro</>}
-                </button>
-                <input
-                  ref={fileSimulacroRef} type="file" accept=".xlsx" style={{ display: 'none' }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) subirSimulacroExcel(f); e.target.value = '' }}
-                />
-              </div>
-
-              {simulacroResumen && (
-                <div className="simulacro-resumen">
-                  <div className="simulacro-resumen-row">
-                    <span className="simulacro-tag simulacro-tag-area">Área {simulacroResumen.area}</span>
-                    <span style={{ color: '#166534', fontWeight: 600 }}>{simulacroResumen.procesados} alumno(s) registrados</span>
+            {/* ── Tab: Excel ── */}
+            {notasTab === 'excel' && (
+              <div className="excel-upload-grid">
+                {!selectedExamen && (
+                  <div className="exam-no-ciclo" style={{ padding: '24px 20px' }}>
+                    <i className="bi bi-file-earmark-excel" />
+                    Selecciona un examen para cargar notas por Excel.
                   </div>
-                  {simulacroResumen.noEncontrados.length > 0 && (
-                    <div className="simulacro-resumen-row">
-                      <span className="simulacro-tag simulacro-tag-warn">No encontrados</span>
-                      <span style={{ color: '#854d0e' }}>{simulacroResumen.noEncontrados.join(', ')}</span>
-                    </div>
-                  )}
-                  {simulacroResumen.errores.length > 0 && (
-                    <div className="simulacro-resumen-row">
-                      <span className="simulacro-tag simulacro-tag-err">Errores</span>
-                      <span style={{ color: '#b91c1c' }}>{simulacroResumen.errores.map(e => e.dni).join(', ')}</span>
+                )}
+
+                {/* 1 — Plantilla simple */}
+                <div className="excel-upload-card plantilla">
+                  <i className="bi bi-file-earmark-spreadsheet excel-upload-card-icon" />
+                  <div className="excel-upload-card-info">
+                    <div className="excel-upload-card-title">Plantilla de notas</div>
+                    <div className="excel-upload-card-desc">Descarga la plantilla, completa las notas y vuelve a subir el archivo.</div>
+                  </div>
+                  <div className="excel-upload-card-actions">
+                    <button type="button" className="btn-excel-dl" onClick={descargarPlantilla} disabled={!selectedExamen}>
+                      <i className="bi bi-download" /> Descargar
+                    </button>
+                    <button type="button" className="btn-excel-up" onClick={() => fileInputRef.current?.click()} disabled={!selectedExamen}>
+                      <i className="bi bi-upload" /> Subir
+                    </button>
+                    <input ref={fileInputRef} type="file" accept=".xlsx" style={{ display: 'none' }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) subirNotasExcel(f); e.target.value = '' }} />
+                  </div>
+                </div>
+
+                {/* 2 — Simulacro OMR */}
+                <div className="excel-upload-card simulacro">
+                  <i className="bi bi-grid-3x3-gap-fill excel-upload-card-icon" />
+                  <div className="excel-upload-card-info">
+                    <div className="excel-upload-card-title">Simulacro OMR por Área</div>
+                    <div className="excel-upload-card-desc">Excel del lector OMR. El sistema detecta el área automáticamente y guarda los puntajes por curso.</div>
+                  </div>
+                  <div className="excel-upload-card-actions">
+                    <button type="button" className="btn-simulacro-up" onClick={() => fileSimulacroRef.current?.click()} disabled={!selectedExamen || subiendoSimulacro}>
+                      {subiendoSimulacro ? <><div className="exam-spinner-sm" />Procesando...</> : <><i className="bi bi-upload" />Subir</>}
+                    </button>
+                    <input ref={fileSimulacroRef} type="file" accept=".xlsx" style={{ display: 'none' }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) subirSimulacroExcel(f); e.target.value = '' }} />
+                  </div>
+                  {simulacroResumen && (
+                    <div style={{ width: '100%', marginTop: 8 }}>
+                      <div className="simulacro-resumen">
+                        <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-area">Área {simulacroResumen.area}</span><span style={{ color: '#166534', fontWeight: 600 }}>{simulacroResumen.procesados} alumno(s)</span></div>
+                        {simulacroResumen.noEncontrados.length > 0 && <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-warn">Sin DNI</span><span style={{ color: '#854d0e' }}>{simulacroResumen.noEncontrados.join(', ')}</span></div>}
+                        {simulacroResumen.errores.length > 0 && <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-err">Errores</span><span style={{ color: '#b91c1c' }}>{simulacroResumen.errores.map(e => e.dni).join(', ')}</span></div>}
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* Resultados — Excel con ALUMNOS + ESTADÍSTICA INDIVIDUAL */}
-            <div className="simulacro-panel" style={{ borderColor: '#c7d2fe', background: '#eef2ff' }}>
-              <p className="simulacro-panel-title" style={{ color: '#3730a3' }}><i className="bi bi-bar-chart-fill me-1" />Resultados por Alumno (ESTADÍSTICA INDIVIDUAL)</p>
-              <p className="simulacro-panel-desc">
-                {selectedExamen
-                  ? <>Sube el Excel con hojas <strong>ALUMNOS</strong> y <strong>ESTADÍSTICA INDIVIDUAL</strong> para <strong>Examen N° {selectedExamen.semana}</strong>. Se registrarán los resultados por alumno y por curso.</>
-                  : 'Selecciona un examen para subir el archivo Excel de resultados.'}
-              </p>
-              <div className="excel-panel-actions">
-                <button
-                  type="button"
-                  className="btn-simulacro-up"
-                  style={{ background: '#4f46e5' }}
-                  onClick={() => fileResultadosRef.current?.click()}
-                  disabled={!selectedExamen || subiendoResultados}
-                >
-                  {subiendoResultados
-                    ? <><div className="exam-spinner-sm" />Procesando...</>
-                    : <><i className="bi bi-file-earmark-bar-graph" />Subir Excel Resultados</>}
-                </button>
-                <input
-                  ref={fileResultadosRef} type="file" accept=".xlsx" style={{ display: 'none' }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) subirResultadosExcel(f); e.target.value = '' }}
-                />
-              </div>
-              {resultadosResumen && (
-                <div className="simulacro-resumen">
-                  <div className="simulacro-resumen-row">
-                    <span className="simulacro-tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>Procesados</span>
-                    <span style={{ color: '#3730a3', fontWeight: 600 }}>{resultadosResumen.procesados} alumno(s) registrados</span>
+                {/* 3 — Resultados por alumno */}
+                <div className="excel-upload-card resultados">
+                  <i className="bi bi-bar-chart-fill excel-upload-card-icon" />
+                  <div className="excel-upload-card-info">
+                    <div className="excel-upload-card-title">Resultados por alumno</div>
+                    <div className="excel-upload-card-desc">Excel con hoja <strong>ESTADÍSTICA INDIVIDUAL</strong>. Registra resultados por alumno y por curso automáticamente.</div>
                   </div>
-                  {resultadosResumen.noEncontrados.length > 0 && (
-                    <div className="simulacro-resumen-row">
-                      <span className="simulacro-tag simulacro-tag-warn">No encontrados</span>
-                      <span style={{ color: '#854d0e' }}>{resultadosResumen.noEncontrados.join(', ')}</span>
-                    </div>
-                  )}
-                  {resultadosResumen.errores.length > 0 && (
-                    <div className="simulacro-resumen-row">
-                      <span className="simulacro-tag simulacro-tag-err">Errores</span>
-                      <span style={{ color: '#b91c1c' }}>{resultadosResumen.errores.map(e => e.codigo).join(', ')}</span>
+                  <div className="excel-upload-card-actions">
+                    <button type="button" style={{ background: '#4f46e5' }} className="btn-simulacro-up" onClick={() => fileResultadosRef.current?.click()} disabled={!selectedExamen || subiendoResultados}>
+                      {subiendoResultados ? <><div className="exam-spinner-sm" />Procesando...</> : <><i className="bi bi-upload" />Subir</>}
+                    </button>
+                    <input ref={fileResultadosRef} type="file" accept=".xlsx" style={{ display: 'none' }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) subirResultadosExcel(f); e.target.value = '' }} />
+                  </div>
+                  {resultadosResumen && (
+                    <div style={{ width: '100%', marginTop: 8 }}>
+                      <div className="simulacro-resumen">
+                        <div className="simulacro-resumen-row"><span className="simulacro-tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>OK</span><span style={{ color: '#3730a3', fontWeight: 600 }}>{resultadosResumen.procesados} alumno(s)</span></div>
+                        {(resultadosResumen.noEncontradosEnExcel ?? resultadosResumen.noEncontrados ?? []).length > 0 && <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-warn">Sin datos</span><span style={{ color: '#854d0e', fontSize: 11 }}>{(resultadosResumen.noEncontradosEnExcel ?? resultadosResumen.noEncontrados ?? []).slice(0, 5).join(', ')}{(resultadosResumen.noEncontradosEnExcel ?? resultadosResumen.noEncontrados ?? []).length > 5 ? '…' : ''}</span></div>}
+                        {resultadosResumen.errores.length > 0 && <div className="simulacro-resumen-row"><span className="simulacro-tag simulacro-tag-err">Errores</span><span style={{ color: '#b91c1c' }}>{resultadosResumen.errores.map(e => e.alumno).join(', ')}</span></div>}
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
           </div>
         </div>
