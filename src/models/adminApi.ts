@@ -322,4 +322,7 @@ export const adminApi = {
   eliminarPlantillaExamen(id: number) {
     return api.delete(`${PREFIX}/plantillas-examen/${id}`)
   },
+  getNotasAlumnoPorDNI(dni: string, examenId: number) {
+    return api.get<any>(`${PREFIX}/examen/${examenId}/notas-alumno/${dni}`)
+  },
 }

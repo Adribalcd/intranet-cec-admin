@@ -976,8 +976,15 @@ export function AdminExamenesView() {
   const notaBadge = (nota: string) => {
     const n = parseFloat(nota)
     if (isNaN(n)) return null
-    if (n >= 14) return <span className="nota-badge nota-alta">{nota}</span>
-    if (n >= 11) return <span className="nota-badge nota-media">{nota}</span>
+    
+    // Obtener la nota máxima del examen seleccionado para calcular el umbral (70% para verde, 55% para amarillo)
+    const maxNota = selectedExamen?.cantidad_preguntas 
+      ? (selectedExamen.cantidad_preguntas * (selectedExamen.puntaje_pregunta_buena || 4))
+      : 20
+      
+    const pct = (n / maxNota) * 100
+    if (pct >= 70) return <span className="nota-badge nota-alta">{nota}</span>
+    if (pct >= 55) return <span className="nota-badge nota-media">{nota}</span>
     return <span className="nota-badge nota-baja">{nota}</span>
   }
 
