@@ -610,29 +610,23 @@ export function AdminExamenesView() {
 
     // Aplanar secciones/cursos en una lista de ConfigCursoExamen
     const lista: ConfigCursoExamen[] = []
+    const curToConfig = (cur: any, seccionNombre: string | null, i: number): ConfigCursoExamen => ({
+      nombre:            cur.nombre,
+      seccionNombre,
+      cantidadPreguntas: cur.cantidadPreguntas ?? cur.cantidad_preguntas ?? null,
+      puntajeBuena:      Number(cur.puntajeBuena  ?? cur.puntaje_buena  ?? 4),
+      puntajeMala:       Number(cur.puntajeMala   ?? cur.puntaje_mala   ?? 1),
+      orden:             cur.orden ?? i,
+    })
     if (p.tiene_secciones) {
-      for (const sec of p.Secciones ?? []) {
-        for (const cur of sec.Cursos ?? []) {
-          lista.push({
-            nombre:             cur.nombre,
-            seccionNombre:      sec.nombre,
-            cantidadPreguntas:  cur.cantidadPreguntas ?? null,
-            puntajeBuena:       Number(cur.puntajeBuena),
-            puntajeMala:        Number(cur.puntajeMala),
-            orden:              cur.orden,
-          })
+      for (const sec of (p as any).Secciones ?? []) {
+        for (let i = 0; i < (sec.Cursos ?? []).length; i++) {
+          lista.push(curToConfig(sec.Cursos[i], sec.nombre, i))
         }
       }
     } else {
-      for (const cur of p.Cursos ?? []) {
-        lista.push({
-          nombre:             cur.nombre,
-          seccionNombre:      null,
-          cantidadPreguntas:  cur.cantidadPreguntas ?? null,
-          puntajeBuena:       Number(cur.puntajeBuena),
-          puntajeMala:        Number(cur.puntajeMala),
-          orden:              cur.orden,
-        })
+      for (let i = 0; i < ((p as any).Cursos ?? []).length; i++) {
+        lista.push(curToConfig((p as any).Cursos[i], null, i))
       }
     }
     setConfigCursos(lista)
