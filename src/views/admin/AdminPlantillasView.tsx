@@ -42,23 +42,25 @@ function seccionVacia(): SeccionEditor {
 }
 
 // ─── utilidades ─────────────────────────────────────────────────────────────
+function mapCursoFromApi(c: any): CursoEditor {
+  const cantidad = c.cantidadPreguntas ?? c.cantidad_preguntas
+  const buena    = c.puntajeBuena    ?? c.puntaje_buena    ?? 4
+  const mala     = c.puntajeMala     ?? c.puntaje_mala     ?? 1
+  return {
+    nombre:             c.nombre ?? '',
+    cantidadPreguntas:  cantidad != null ? String(cantidad) : '',
+    puntajeBuena:       String(buena),
+    puntajeMala:        String(mala),
+  }
+}
+
 function plantillaToForm(p: PlantillaExamen): PlantillaForm {
-  const secciones: SeccionEditor[] = (p.Secciones ?? []).map(s => ({
+  const secciones: SeccionEditor[] = (p.Secciones ?? []).map((s: any) => ({
     nombre: s.nombre,
-    cursos: (s.Cursos ?? []).map(c => ({
-      nombre: c.nombre,
-      cantidadPreguntas: c.cantidadPreguntas != null ? String(c.cantidadPreguntas) : '',
-      puntajeBuena: String(c.puntajeBuena),
-      puntajeMala: String(c.puntajeMala),
-    })),
+    cursos: (s.Cursos ?? []).map(mapCursoFromApi),
   }))
 
-  const cursos: CursoEditor[] = (p.Cursos ?? []).map(c => ({
-    nombre: c.nombre,
-    cantidadPreguntas: c.cantidadPreguntas != null ? String(c.cantidadPreguntas) : '',
-    puntajeBuena: String(c.puntajeBuena),
-    puntajeMala: String(c.puntajeMala),
-  }))
+  const cursos: CursoEditor[] = (p.Cursos ?? []).map(mapCursoFromApi)
 
   return {
     nombre: p.nombre,
