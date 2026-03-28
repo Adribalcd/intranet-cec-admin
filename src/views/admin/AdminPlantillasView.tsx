@@ -607,6 +607,10 @@ const btnEdit: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 8, border: '1.5px solid #94d2bd', background: '#e8f4f5',
   color: '#0d4f5c', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
 }
+const btnSuccessSm: React.CSSProperties = {
+  width: 32, height: 32, borderRadius: 8, border: '1.5px solid #86efac', background: '#f0fdf4',
+  color: '#166534', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+}
 const btnDanger: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 8, border: '1.5px solid #fca5a5', background: '#fff5f5',
   color: '#b91c1c', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
