@@ -79,10 +79,10 @@ function formToPayload(f: PlantillaForm) {
     orden: i,
   })
 
-  const secciones: PlantillaSeccionItem[] = f.secciones.map((s, i) => ({
+  const secciones = f.secciones.map((s, i) => ({
     nombre: s.nombre,
     orden: i,
-    Cursos: s.cursos.map(mapCurso),
+    cursos: s.cursos.map(mapCurso),
   }))
 
   const cursos: PlantillaCursoItem[] = f.cursos.map(mapCurso)
