@@ -548,6 +548,28 @@ export function AdminExamenesView() {
   const [loadingAlumnos, setLoadingAlumnos]   = useState(false)
   const [loadingNotasExamen, setLoadingNotasExamen] = useState(false)
 
+  // Búsqueda por DNI
+  const [dniBusqueda, setDniBusqueda] = useState('')
+  const [notasDNI, setNotasDNI] = useState<any[]>([])
+  const [buscandoDNI, setBuscandoDNI] = useState(false)
+  const [busquedaRealizada, setBusquedaRealizada] = useState(false)
+
+  const handleBuscarPorDNI = async () => {
+    if (!dniBusqueda.trim()) return
+    setBuscandoDNI(true)
+    setBusquedaRealizada(true)
+    setNotasDNI([])
+    try {
+      // Usar adminApi para buscar las notas por DNI
+      const res = await adminApi.getNotasAlumnoPorDNI(dniBusqueda)
+      setNotasDNI(res || [])
+    } catch (err: any) {
+      setError(err.message || 'Error al buscar notas por DNI')
+    } finally {
+      setBuscandoDNI(false)
+    }
+  }
+
   const [ranking, setRanking]           = useState<CalificacionExamenItem[]>([])
   const [rankingExamen, setRankingExamen] = useState<Examen | null>(null)
 
@@ -992,6 +1014,86 @@ export function AdminExamenesView() {
       {success && <div className="exam-alert-success"><i className="bi bi-check-circle-fill"       style={{ flexShrink: 0 }} /> {success}</div>}
 
       <div className="exam-grid">
+
+        {/* ── BUSCAR EXAMEN POR DNI ── */}
+        <div className="exam-card">
+          <div className="exam-card-header">
+            <span className="exam-card-header-icon excel" style={{ background: 'linear-gradient(135deg, #4f46e5, #3730a3)' }}><i className="bi bi-search" /></span>
+            <div>
+              <p className="exam-card-title">Buscar notas por DNI</p>
+              <p className="exam-card-desc">Consulta los exámenes rendidos por un alumno</p>
+            </div>
+          </div>
+          <div className="exam-card-body">
+            <div className="exam-field" style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input 
+                  type="text" 
+                  placeholder="Ingrese DNI del alumno..." 
+                  value={dniBusqueda} 
+                  onChange={(e) => setDniBusqueda(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleBuscarPorDNI()}
+                  style={{ flex: 1 }}
+                />
+                <button 
+                  className="btn-registrar-notas" 
+                  style={{ padding: '0 15px', background: '#4f46e5' }}
+                  onClick={handleBuscarPorDNI}
+                  disabled={buscandoDNI || !dniBusqueda.trim()}
+                >
+                  {buscandoDNI ? <div className="exam-spinner-sm" /> : <i className="bi bi-search" />}
+                </button>
+              </div>
+            </div>
+
+            {notasDNI.length > 0 && (
+              <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--teal-dark)' }}>Exámenes encontrados</span>
+                  <span className="exam-count-badge" style={{ background: '#4f46e5' }}>{notasDNI.length}</span>
+                </div>
+                <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                      <tr>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Examen</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>Puesto</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>Nota</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {notasDNI.map((n: any, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 12px' }}>
+                            <div style={{ fontWeight: 600 }}>{n.tipo_examen} {n.subtipo_examen && `(${n.subtipo_examen})`}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{n.fecha} • Sem. {n.semana}</div>
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            <span style={{ fontWeight: 700, color: n.puesto <= 3 ? '#b45309' : 'var(--text-main)' }}>
+                              #{n.puesto || '—'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            <div style={{ fontWeight: 800, color: n.valor >= 14 ? '#166534' : n.valor >= 11 ? '#b45309' : '#b91c1c' }}>
+                              {parseFloat(n.valor).toFixed(2)}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            
+            {busquedaRealizada && notasDNI.length === 0 && !buscandoDNI && (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: 13 }}>
+                <i className="bi bi-info-circle" style={{ display: 'block', fontSize: 24, marginBottom: 8, opacity: 0.5 }} />
+                No se encontraron notas para el DNI ingresado.
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ── CREAR EXAMEN ── */}
         <div className="exam-card">
