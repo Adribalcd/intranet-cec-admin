@@ -167,6 +167,17 @@ const styles = `
   .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .voc-separator { border: none; border-top: 1px dashed var(--border); margin: 14px 0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .mat-title { font-size: 18px; }
+    .mat-form-row { grid-template-columns: 1fr; }
+    .mat-form-row.cols-3 { grid-template-columns: 1fr; }
+    .mat-card-body { padding: 14px; }
+  }
+  @media (max-width: 480px) {
+    .mat-card-header { flex-wrap: wrap; gap: 8px; }
+  }
 `
 
 // ── Bloque reutilizable: campos Universidad / Área / Carrera ─────────────────

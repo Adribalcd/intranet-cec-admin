@@ -151,6 +151,15 @@ const styles = `
     height: 100%; background: #3b82f6; border-radius: 3px;
     transition: width 0.3s ease;
   }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .carnets-table-card { overflow-x: auto; }
+    .carnets-table      { min-width: 500px; }
+  }
+  @media (max-width: 480px) {
+    .carnets-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  }
 `
 
 export function AdminCarnetsView() {

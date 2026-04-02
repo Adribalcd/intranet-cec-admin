@@ -316,6 +316,19 @@ const styles = `
   .btn-del-alumno:hover { background: #fecaca; }
   .confirm-modal-danger { background: #fff5f5; border: 1px solid #fca5a5; border-radius: 12px; padding: 18px; margin-bottom: 4px; }
   .confirm-modal-danger p { font-size: 13px; color: #7f1d1d; margin: 0; line-height: 1.6; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .alumnos-header { flex-direction: column; align-items: flex-start; }
+    .alumnos-header-actions { width: 100%; flex-wrap: wrap; }
+    .alumnos-search-wrap { max-width: 100%; }
+    .alumnos-table-card { overflow-x: auto; }
+    .alumnos-table { min-width: 560px; }
+  }
+  @media (max-width: 480px) {
+    .alumnos-title { font-size: 18px; }
+    .ciclo-select { min-width: 0; width: 100%; }
+  }
 `
 
 export function AdminAlumnosView() {

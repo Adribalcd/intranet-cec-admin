@@ -193,6 +193,21 @@ const sidebarStyles = `
     .cec-sidebar.open { transform: translateX(0); }
     .cec-main { margin-left: 0; padding: 20px 16px; padding-top: 70px; }
     .cec-mobile-toggle { display: flex; }
+    .cec-overlay.open { display: block; }
+    body { overflow-x: hidden; }
+  }
+
+  @media (max-width: 480px) {
+    .cec-main { padding: 14px 10px; padding-top: 64px; }
+    .cec-nav-link { font-size: 12px; padding: 8px 10px; }
+  }
+
+  /* ─── OVERLAY ─── */
+  .cec-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.42);
+    cursor: pointer;
   }
 `
 
@@ -205,9 +220,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login')
   }
 
+  const closeSidebar = () => {
+    document.querySelector('.cec-sidebar')?.classList.remove('open')
+    document.querySelector('.cec-overlay')?.classList.remove('open')
+  }
+
   const toggleSidebar = () => {
-    const sidebar = document.querySelector('.cec-sidebar')
-    sidebar?.classList.toggle('open')
+    document.querySelector('.cec-sidebar')?.classList.toggle('open')
+    document.querySelector('.cec-overlay')?.classList.toggle('open')
   }
 
   return (
@@ -219,6 +239,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <i className="bi bi-list" />
       </button>
 
+      <div className="cec-overlay" onClick={closeSidebar} />
       <div className="cec-layout">
 
         {/* ── SIDEBAR ── */}
@@ -257,7 +278,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {isAuthenticated && (
             <>
               <div className="cec-nav-label">Administración</div>
-              <ul className="cec-nav">
+              <ul className="cec-nav" onClick={closeSidebar}>
                 <li>
                   <NavLink className="cec-nav-link" to="/admin" end>
                     <i className="bi bi-speedometer2" /> Panel

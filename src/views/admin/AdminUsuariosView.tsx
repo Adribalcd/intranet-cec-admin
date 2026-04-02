@@ -106,8 +106,15 @@ export function AdminUsuariosView() {
 
   return (
     <div style={s.page}>
+      <style>{`
+        @media (max-width: 600px) {
+          .usr-header { flex-direction: column !important; gap: 12px !important; }
+          .usr-header button { width: 100%; justify-content: center; }
+          .usr-cards  { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        }
+      `}</style>
       {/* Header */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div className="usr-header" style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <h2 style={s.h1}><i className="bi bi-shield-lock-fill" style={{ marginRight: 10, color: '#0a9396' }} />Gestión de Usuarios Admin</h2>
           <p style={s.sub}>Crea y administra cuentas de acceso al panel. Solo el rol General puede acceder a este módulo.</p>

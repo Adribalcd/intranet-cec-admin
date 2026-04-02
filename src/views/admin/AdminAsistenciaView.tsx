@@ -87,6 +87,24 @@ const styles = `
   .qr-hint { text-align:center; font-size:12px; color:var(--muted); margin-bottom:0; display:flex; align-items:center; justify-content:center; gap:6px; }
   /* Countdown ring */
   .countdown-ring { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:var(--teal); color:white; font-size:15px; font-weight:700; flex-shrink:0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .asis-header { flex-direction: column; }
+    .asis-card { padding: 16px; }
+    .asis-actions { flex-wrap: wrap; }
+    .asis-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .asis-table { min-width: 520px; }
+    .alumno-card { flex-direction: column; align-items: center; text-align: center; }
+    .alumno-info { min-width: 0; text-align: center; }
+    .alumno-meta { justify-content: center; }
+  }
+  @media (max-width: 480px) {
+    .asis-title { font-size: 18px; }
+    .asis-tabs { gap: 4px; }
+    .asis-tab { padding: 8px 12px; font-size: 12px; }
+    .asis-grid2 { gap: 10px; }
+  }
 `
 
 // ── Escáner QR por cámara ──────────────────────────────────────

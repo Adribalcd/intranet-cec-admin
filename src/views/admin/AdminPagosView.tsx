@@ -276,6 +276,19 @@ export function AdminPagosView() {
 
   return (
     <div style={s.page}>
+      <style>{`
+        @media (max-width: 768px) {
+          .pago-split { flex-direction: column !important; }
+          .pago-left  { width: 100% !important; }
+          .pago-right { width: 100% !important; }
+          .pago-tabs  { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; padding-bottom: 2px; }
+          .pago-tabs button { white-space: nowrap; flex-shrink: 0; }
+          .pago-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        }
+        @media (max-width: 480px) {
+          .pago-tabs button { padding: 8px 10px !important; font-size: 12px !important; }
+        }
+      `}</style>
       <div style={s.header}>
         <h1 style={s.h1}><i className="bi bi-cash-stack" style={{ marginRight: 10, color: '#0a9396' }} />Gestión de Pagos</h1>
         <p style={s.sub}>Conceptos de pago, registro y seguimiento por alumno</p>
@@ -327,7 +340,7 @@ export function AdminPagosView() {
       </div>
 
       {/* Tabs */}
-      <div style={s.tabBar}>
+      <div style={s.tabBar} className="pago-tabs">
         {['Conceptos de pago', 'Pagos por alumno', 'Resumen', 'Configuración'].map((t, i) => (
           <button key={i} style={tab === i ? s.tabActive : s.tab} onClick={() => setTab(i)}>{t}</button>
         ))}
@@ -343,7 +356,7 @@ export function AdminPagosView() {
           {conceptos.length === 0 ? (
             <p style={{ color: '#6c8a91', fontSize: 13 }}>No hay conceptos para este ciclo.</p>
           ) : (
-            <table style={s.table}>
+            <div className="pago-table"><table style={s.table}>
               <thead>
                 <tr>
                   <th style={s.th}>Tipo</th>
@@ -379,16 +392,16 @@ export function AdminPagosView() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
 
       {/* ── TAB 1: Pagos por alumno ── */}
       {tab === 1 && (
-        <div style={s.splitPanel}>
+        <div style={s.splitPanel} className="pago-split">
           {/* Left: lista de alumnos */}
-          <div style={s.leftPanel}>
+          <div style={s.leftPanel} className="pago-left">
             <div style={s.searchBox}>
               <input style={{ ...s.input, fontSize: 13 }} placeholder="Buscar alumno..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
@@ -405,7 +418,7 @@ export function AdminPagosView() {
           </div>
 
           {/* Right: conceptos del alumno */}
-          <div style={s.rightPanel}>
+          <div style={s.rightPanel} className="pago-right">
             {!selectedAlumno ? (
               <p style={{ color: '#6c8a91', fontSize: 13 }}>Selecciona un alumno de la lista.</p>
             ) : (
